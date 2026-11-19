@@ -18,6 +18,7 @@ from infrahub_sdk.ctl.storage import migration as migration_module
 from infrahub_sdk.ctl.storage.migration import Options, StorageEncryptor
 
 if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
     from pathlib import Path
 
     from click.testing import Result
@@ -329,6 +330,10 @@ def text_of(result: Result) -> str:
     return result.stdout.replace("\n", " ")
 
 
+def squeezed(result: Result) -> str:
+    return " ".join(result.stdout.split())
+
+
 def test_a_server_that_repeats_the_position_it_was_given_exits_2_with_a_message(
     httpx_mock: HTTPXMock, files: list[str], tmp_path: Path
 ) -> None:
@@ -557,6 +562,101 @@ def test_a_stop_signal_cancels_the_work_saves_the_state_and_prints_done_over_tot
     assert [json.loads(r.content)["identifiers"] for r in httpx_mock.get_requests(method="POST")] == [["c"]]
 
 
+def encrypt_until(
+    trouble_at: str, trouble: Callable[[], Awaitable[httpx.Response]]
+) -> Callable[..., Awaitable[httpx.Response]]:
+    """Answer every batch as encrypted, except the batch that holds `trouble_at`, which gets `trouble`."""
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        identifiers = json.loads(request.content)["identifiers"]
+        if trouble_at in identifiers:
+            return await trouble()
+        return httpx.Response(200, json=answer(*identifiers))
+
+    return handler
+
+
+def stop_with(signal_number: int) -> Callable[[], Awaitable[httpx.Response]]:
+    async def stop() -> httpx.Response:
+        os.kill(os.getpid(), signal_number)
+        await asyncio.sleep(30)
+        raise AssertionError("not reached")
+
+    return stop
+
+
+@pytest.mark.parametrize("case", [pytest.param(tc, id=tc.name) for tc in STOP_CASES])
+def test_a_stop_in_a_single_page_shows_what_the_server_confirmed_in_it_and_says_no_position_was_saved(
+    case: StopCase, httpx_mock: HTTPXMock, files: list[str], tmp_path: Path
+) -> None:
+    httpx_mock.add_response(url=f"{LIST_URL}?limit=5000", json=page("a", "b", "c", "d"))
+    httpx_mock.add_callback(encrypt_until("c", stop_with(case.signal_number)), method="POST", url=BATCH_URL)
+
+    result = invoke(files, "--batch-size", "2", "--concurrency", "1")
+
+    output = squeezed(result)
+    assert result.exit_code == case.exit_code, result.stdout
+    assert "encrypted (interrupted page, not saved) │ 2" in output
+    assert "Bytes encrypted (interrupted page, not saved) │ 200" in output
+    assert "Bytes encrypted │ 0" in output
+    assert "Objects per second │ 0.0" not in output
+    assert "the server reports the objects it already encrypted as already_encrypted" in output
+    assert "No page was complete, so no position was saved" in output
+    assert f"Stopped by {case.stopped_by}. Done: 2 objects." in output
+    assert not (tmp_path / "state.json").exists()
+
+
+def test_a_stop_in_a_later_page_keeps_the_saved_totals_and_shows_the_interrupted_page_apart(
+    httpx_mock: HTTPXMock, files: list[str], tmp_path: Path
+) -> None:
+    httpx_mock.add_response(url=f"{LIST_URL}?limit=2", json=page("a", "b", next_start_after="b"))
+    httpx_mock.add_response(url=f"{LIST_URL}?limit=2&start_after=b", json=page("c", "d", next_start_after="d"))
+    httpx_mock.add_callback(encrypt_until("d", stop_with(signal.SIGINT)), method="POST", url=BATCH_URL)
+
+    result = invoke(files, "--page-size", "2", "--batch-size", "1", "--concurrency", "1")
+
+    output = squeezed(result)
+    assert result.exit_code == 130, result.stdout
+    assert "│ encrypted │ 2 │" in output
+    assert "encrypted (interrupted page, not saved) │ 1" in output
+    assert "Bytes encrypted │ 200" in output
+    assert "Bytes encrypted (interrupted page, not saved) │ 100" in output
+    assert "No page was complete" not in output
+    state = json.loads((tmp_path / "state.json").read_text())
+    assert state["start_after"] == "b"
+    assert state["totals"]["counts"] == {"encrypted": 2}
+    assert state["totals"]["bytes_encrypted"] == 200
+
+
+def test_an_error_in_a_page_shows_what_the_server_confirmed_before_it_and_exits_2(
+    httpx_mock: HTTPXMock, files: list[str], tmp_path: Path
+) -> None:
+    async def refuse() -> httpx.Response:
+        return httpx.Response(403, json={"detail": "no"})
+
+    httpx_mock.add_response(url=f"{LIST_URL}?limit=5000", json=page("a", "b", "c", "d"))
+    httpx_mock.add_callback(encrypt_until("c", refuse), method="POST", url=BATCH_URL)
+
+    result = invoke(files, "--batch-size", "2", "--concurrency", "1")
+
+    output = squeezed(result)
+    assert result.exit_code == 2, result.stdout
+    assert "encrypted (interrupted page, not saved) │ 2" in output
+    assert "No page was complete, so no position was saved" in output
+    assert not (tmp_path / "state.json").exists()
+
+
+def test_a_complete_run_shows_no_interrupted_page_rows_and_no_note(httpx_mock: HTTPXMock, files: list[str]) -> None:
+    httpx_mock.add_response(url=f"{LIST_URL}?limit=5000", json=page("a", "b"))
+    httpx_mock.add_response(method="POST", url=BATCH_URL, json=answer("a", "b"))
+
+    result = invoke(files)
+
+    assert result.exit_code == 0, result.stdout
+    assert "interrupted page" not in result.stdout
+    assert "No page was complete" not in result.stdout
+
+
 @pytest.mark.parametrize("case", [pytest.param(tc, id=tc.name) for tc in STOP_CASES])
 def test_a_stop_signal_during_the_count_saves_nothing_and_says_so(
     case: StopCase, httpx_mock: HTTPXMock, files: list[str], tmp_path: Path
@@ -632,6 +732,58 @@ async def test_the_progress_line_printed_when_the_output_is_not_a_terminal_shows
     assert "limit " in last
     assert "429: 0" in last
     assert "retries: 0" in last
+
+
+@dataclass
+class FreezeCase:
+    name: str
+    frozen_seconds: int
+
+
+FREEZE_CASES = [
+    FreezeCase(name="one-minute", frozen_seconds=60),
+    FreezeCase(name="six-minutes", frozen_seconds=360),
+]
+
+
+@pytest.mark.parametrize("case", [pytest.param(tc, id=tc.name) for tc in FREEZE_CASES])
+async def test_the_remaining_time_after_the_process_was_frozen_is_estimating_and_then_right(
+    case: FreezeCase, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    clock = {"now": 1000.0}
+
+    class FakeClockModule:
+        @staticmethod
+        def monotonic() -> float:
+            return clock["now"]
+
+    monkeypatch.setattr(encrypt_module, "time", FakeClockModule)
+    encryptor = make_encryptor(tmp_path)
+    encryptor.remaining_objects = 100_000
+    encryptor.remaining_bytes = 10_000_000
+    progress = encrypt_module._Progress(encryptor)
+
+    def run(seconds: float) -> str:
+        """Run at 100 objects/s, with a progress line every 0.5 s; return the last line."""
+        line = ""
+        for _ in range(int(seconds * 2)):
+            clock["now"] += 0.5
+            encryptor.objects_confirmed += 50
+            line = progress.line()
+        return line
+
+    run(30)
+    # The process is stopped: the clock moves and the count does not; a batch that was in flight completes on resume.
+    clock["now"] += case.frozen_seconds
+    encryptor.objects_confirmed += 50
+    assert "remaining estimating" in progress.line()
+
+    line = run(5)
+
+    shown = line.split("remaining ")[1].split(" | ")[0]
+    minutes, seconds = shown.rstrip("s").split("m ")
+    expected = (100_000 - encryptor.objects_confirmed) / 100
+    assert int(minutes) * 60 + int(seconds) == pytest.approx(expected, rel=0.05)
 
 
 async def test_the_progress_line_while_counting_shows_the_objects_counted_so_far(tmp_path: Path) -> None:

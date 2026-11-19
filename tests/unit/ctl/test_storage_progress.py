@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from itertools import pairwise
 
 import pytest
 
@@ -126,16 +127,61 @@ def test_the_rate_follows_the_last_window_and_not_the_average_since_the_start() 
 
 def test_the_rate_is_zero_when_nothing_progressed_in_the_window() -> None:
     tracker = RateTracker(window=30, minimum_span=4)
-    tracker.record(now=0, done=500)
-    tracker.record(now=10, done=500)
+    for now in range(0, 11, 2):
+        tracker.record(now=now, done=500)
     assert tracker.rate() == pytest.approx(0.0)
 
 
 def test_the_rate_is_never_negative() -> None:
     tracker = RateTracker(window=30, minimum_span=4)
-    tracker.record(now=0, done=500)
-    tracker.record(now=10, done=400)
+    for now in range(0, 11, 2):
+        tracker.record(now=now, done=500 - now * 10)
     assert tracker.rate() == pytest.approx(0.0)
+
+
+def record_steady(tracker: RateTracker, start: float, stop: float, rate: float, done_at_start: int) -> int:
+    """Record a sample every 0.5 s from `start` to `stop` at `rate` objects/s; return the objects done at `stop`."""
+    now = start
+    while now <= stop:
+        tracker.record(now=now, done=done_at_start + round((now - start) * rate))
+        now += 0.5
+    return done_at_start + round((stop - start) * rate)
+
+
+@pytest.mark.parametrize("frozen_seconds", [60, 360])
+def test_the_rate_after_the_process_was_frozen_ignores_the_frozen_span(frozen_seconds: int) -> None:
+    tracker = RateTracker(window=30, minimum_span=4)
+    done = record_steady(tracker, start=0, stop=60, rate=100, done_at_start=0)
+    resumed_at = 60 + frozen_seconds
+    # The frozen process recorded nothing; the first sample after it holds the same count of objects.
+    tracker.record(now=resumed_at, done=done)
+    assert tracker.rate() is None
+    record_steady(tracker, start=resumed_at, stop=resumed_at + 4, rate=100, done_at_start=done)
+    assert tracker.rate() == pytest.approx(100.0)
+
+
+def test_the_rate_of_a_pause_shorter_than_the_largest_gap_is_kept() -> None:
+    tracker = RateTracker(window=30, minimum_span=4, maximum_gap=5)
+    done = record_steady(tracker, start=0, stop=20, rate=100, done_at_start=0)
+    tracker.record(now=25, done=done)
+    assert tracker.rate() == pytest.approx(done / 25)
+
+
+def test_the_rate_falls_while_the_process_runs_and_nothing_progresses() -> None:
+    tracker = RateTracker(window=30, minimum_span=4)
+    done = record_steady(tracker, start=0, stop=20, rate=100, done_at_start=0)
+    steady = tracker.rate()
+    assert steady is not None
+    assert steady == pytest.approx(100.0)
+    # A server that answers 429: the samples keep coming every 0.5 s and the count stays the same.
+    rates: list[float] = []
+    for second in range(1, 41):
+        tracker.record(now=20 + second / 2, done=done)
+        rate = tracker.rate()
+        assert rate is not None
+        rates.append(rate)
+    assert all(earlier >= later for earlier, later in pairwise(rates))
+    assert rates[-1] < 0.5 * steady
 
 
 def test_the_progress_line_shows_done_total_percent_rate_remaining_bytes_limit_429_and_retries() -> None:

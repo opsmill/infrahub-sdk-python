@@ -6,6 +6,7 @@ from dataclasses import dataclass
 
 RATE_WINDOW_SECONDS = 30.0
 RATE_MINIMUM_SPAN_SECONDS = 4.0
+RATE_MAXIMUM_GAP_SECONDS = 5.0
 MINIMUM_SAMPLES = 2
 BYTES_PER_UNIT = 1000
 BYTE_UNITS = ("B", "kB", "MB", "GB", "TB", "PB")
@@ -20,14 +21,27 @@ class RateTracker:
 
     The caller records `(time, done)` once per progress refresh, which costs two numbers per refresh. The rate
     stays unknown until the recorded samples span `minimum_span` seconds.
+
+    The refresh runs twice per second, so two samples more than `maximum_gap` seconds apart mean the process did
+    not run in between (for example after SIGSTOP). The samples before the gap are dropped, because a rate over a
+    span that holds the pause says nothing about the current speed.
+    A stall of the server does not make a gap: the refresh goes on and the rate falls.
     """
 
-    def __init__(self, window: float = RATE_WINDOW_SECONDS, minimum_span: float = RATE_MINIMUM_SPAN_SECONDS) -> None:
+    def __init__(
+        self,
+        window: float = RATE_WINDOW_SECONDS,
+        minimum_span: float = RATE_MINIMUM_SPAN_SECONDS,
+        maximum_gap: float = RATE_MAXIMUM_GAP_SECONDS,
+    ) -> None:
         self._window = window
         self._minimum_span = minimum_span
+        self._maximum_gap = maximum_gap
         self._samples: deque[tuple[float, int]] = deque()
 
     def record(self, now: float, done: int) -> None:
+        if self._samples and now - self._samples[-1][0] > self._maximum_gap:
+            self._samples.clear()
         self._samples.append((now, done))
         # Keep one sample at or before the start of the window, so the window is always fully covered.
         while len(self._samples) > MINIMUM_SAMPLES and self._samples[1][0] <= now - self._window:

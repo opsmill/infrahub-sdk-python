@@ -264,6 +264,9 @@ class StorageEncryptor:
         self._bytes_at_start = 0
         self.objects_confirmed = 0
         self.bytes_confirmed = 0
+        self.page_interrupted = False
+        self.interrupted_counts: dict[str, int] = {}
+        self.interrupted_bytes_encrypted = 0
         self.selected_objects = 0
         self.selected_bytes = 0
         self.remaining_objects: int | None = None
@@ -563,6 +566,18 @@ class StorageEncryptor:
         elif report is not None:
             report.write(json.dumps(result) + "\n")
 
+    def _keep_interrupted(self, results: list[dict[str, Any]]) -> None:
+        """Keep what the server confirmed in a page that did not complete, for the summary only.
+
+        These results are not in `totals`, so the state file never counts them: the rerun repeats the page.
+        """
+        self.page_interrupted = True
+        for result in results:
+            outcome = result["outcome"]
+            self.interrupted_counts[outcome] = self.interrupted_counts.get(outcome, 0) + 1
+            if outcome == OUTCOME_ENCRYPTED:
+                self.interrupted_bytes_encrypted += result["size"]
+
     def _select(self, objects: list[dict[str, Any]], remaining: int | None) -> tuple[list[dict[str, Any]], bool]:
         """Return the objects of a page to work on, and whether the limit of the run cut the page short."""
         selected: list[dict[str, Any]] = []
@@ -600,6 +615,9 @@ class StorageEncryptor:
         workers = [asyncio.create_task(worker()) for _ in range(min(self.options.concurrency, queue.qsize()))]
         try:
             await asyncio.gather(*workers)
+        except BaseException:
+            self._keep_interrupted(results)
+            raise
         finally:
             for task in workers:
                 task.cancel()

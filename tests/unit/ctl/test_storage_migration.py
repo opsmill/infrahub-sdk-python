@@ -421,6 +421,89 @@ async def test_cancelling_the_run_keeps_the_state_of_the_last_complete_page(
     assert encryptor.totals.counts == {"encrypted": 2}
 
 
+async def test_what_the_server_confirmed_in_an_interrupted_page_is_kept_apart_and_never_counted(
+    httpx_mock: HTTPXMock, tmp_path: Path
+) -> None:
+    async def never_answers(request: httpx.Request) -> httpx.Response:
+        await asyncio.sleep(3600)
+        raise AssertionError("not reached")
+
+    httpx_mock.add_response(url=f"{LIST_URL}?limit=5000", json=page("a", "b", "c", "d"))
+    httpx_mock.add_response(
+        method="POST",
+        url=BATCH_URL,
+        json={
+            "results": [
+                {"identifier": "a", "outcome": "encrypted", "size": 100, "reason": None},
+                {"identifier": "b", "outcome": "already_encrypted", "size": 0, "reason": None},
+            ]
+        },
+        match_json={"identifiers": ["a", "b"], "allow_unverified": False},
+    )
+    httpx_mock.add_callback(
+        never_answers, method="POST", url=BATCH_URL, match_json={"identifiers": ["c", "d"], "allow_unverified": False}
+    )
+    encryptor, _ = make(tmp_path, concurrency=1)
+
+    task = asyncio.create_task(run(encryptor))
+    for _ in range(200):
+        await asyncio.sleep(0.01)
+        if len(httpx_mock.get_requests(method="POST")) == 2:
+            break
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError, match=r"^$"):
+        await task
+
+    assert encryptor.page_interrupted is True
+    assert encryptor.interrupted_counts == {"encrypted": 1, "already_encrypted": 1}
+    assert encryptor.interrupted_bytes_encrypted == 100
+    assert encryptor.objects_confirmed == 2
+    assert encryptor.totals.counts == {}
+    assert encryptor.totals.bytes_encrypted == 0
+    assert not (tmp_path / "state.json").exists()
+
+
+async def test_an_error_in_a_page_keeps_what_the_server_confirmed_before_it_apart(
+    httpx_mock: HTTPXMock, tmp_path: Path
+) -> None:
+    httpx_mock.add_response(url=f"{LIST_URL}?limit=5000", json=page("a", "b", "c", "d"))
+    httpx_mock.add_response(
+        method="POST",
+        url=BATCH_URL,
+        json=answer("a", "b"),
+        match_json={"identifiers": ["a", "b"], "allow_unverified": False},
+    )
+    httpx_mock.add_response(
+        method="POST",
+        url=BATCH_URL,
+        status_code=403,
+        json={"detail": "no"},
+        match_json={"identifiers": ["c", "d"], "allow_unverified": False},
+    )
+    encryptor, _ = make(tmp_path, concurrency=1)
+
+    with pytest.raises(MigrationError, match="HTTP 403"):
+        await run(encryptor)
+
+    assert encryptor.interrupted_counts == {"encrypted": 2}
+    assert encryptor.interrupted_bytes_encrypted == 200
+    assert encryptor.totals.counts == {}
+    assert encryptor.start_after is None
+
+
+async def test_a_complete_page_leaves_nothing_in_the_interrupted_figures(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
+    httpx_mock.add_response(url=f"{LIST_URL}?limit=5000", json=page("a", "b"))
+    httpx_mock.add_response(method="POST", url=BATCH_URL, json=answer("a", "b"))
+    encryptor, _ = make(tmp_path)
+
+    await run(encryptor)
+
+    assert encryptor.page_interrupted is False
+    assert encryptor.interrupted_counts == {}
+    assert encryptor.interrupted_bytes_encrypted == 0
+    assert encryptor.totals.counts == {"encrypted": 2}
+
+
 # 429 answers
 
 

@@ -174,7 +174,7 @@ def _announce_count(encryptor: StorageEncryptor) -> None:
 def _summary_table(encryptor: StorageEncryptor, options: Options) -> Table:
     totals = encryptor.totals
     seconds = encryptor.seconds_this_run
-    handled = encryptor.handled_this_run
+    handled = encryptor.handled_this_run + sum(encryptor.interrupted_counts.values())
     table = Table(show_header=False, title="Storage encryption" + (" (dry run)" if options.dry_run else ""))
     table.add_row("Objects listed", str(totals.objects_listed))
     if options.dry_run:
@@ -194,8 +194,12 @@ def _summary_table(encryptor: StorageEncryptor, options: Options) -> Table:
         table.add_row(outcome, str(count))
     if options.before:
         table.add_row("Skipped, modified after --before", str(totals.skipped_newer))
+    for outcome, count in sorted(encryptor.interrupted_counts.items()):
+        table.add_row(f"{outcome} (interrupted page, not saved)", str(count))
     table.add_row("Bytes listed", str(totals.bytes_listed))
     table.add_row("Bytes encrypted", str(totals.bytes_encrypted))
+    if encryptor.interrupted_counts:
+        table.add_row("Bytes encrypted (interrupted page, not saved)", str(encryptor.interrupted_bytes_encrypted))
     table.add_row("Requests", f"{totals.requests} ({totals.encrypt_requests} to encrypt a batch)")
     table.add_row("Retries after errors", str(totals.retries))
     table.add_row("Answers 429", f"{totals.shed_429} ({totals.shed_429_admission} with the admission marker)")
@@ -209,6 +213,23 @@ def _summary_table(encryptor: StorageEncryptor, options: Options) -> Table:
         table.add_row("Objects per second", f"{handled / seconds:.1f}")
     table.add_row("Pass finished", "yes" if encryptor.completed else "no")
     return table
+
+
+def _print_interrupted_page(encryptor: StorageEncryptor, state_file: Path) -> None:
+    """Say what the interrupted page left out of the table, and why no position was saved when none was."""
+    if encryptor.interrupted_counts:
+        console.print(
+            "The rows marked 'interrupted page' are what the server confirmed in a page that was not complete. "
+            "They are not saved. Requests still in flight at the stop can have encrypted more. The rerun repeats "
+            "the page, and the server reports the objects it already encrypted as already_encrypted.",
+            highlight=False,
+        )
+    if encryptor.page_interrupted and not state_file.exists():
+        console.print(
+            "No page was complete, so no position was saved. With a smaller --page-size the position is saved "
+            "after every page.",
+            highlight=False,
+        )
 
 
 @catch_exception(console=console)
@@ -322,9 +343,11 @@ async def encrypt_command(
             if not dry_run and state_file.exists():
                 console.print(f"Progress is saved in {escape(str(state_file))}; run the same command again to resume.")
             console.print(_summary_table(encryptor, options))
+            _print_interrupted_page(encryptor, state_file)
             raise typer.Exit(code=EXIT_STOPPED) from exc
 
     console.print(_summary_table(encryptor, options))
+    _print_interrupted_page(encryptor, state_file)
     if dry_run and stopped_by is None:
         console.print(
             f"To process: {format_number(encryptor.selected_objects)} objects ({format_bytes(encryptor.selected_bytes)})",
