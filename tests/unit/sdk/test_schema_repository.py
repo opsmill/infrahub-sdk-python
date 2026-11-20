@@ -11,6 +11,7 @@ from infrahub_sdk.exceptions import FragmentFileNotFoundError, RepositoryFileNot
 from infrahub_sdk.schema.repository import (
     MALFORMED_WATCH_MESSAGE,
     MISSING_WATCH_MESSAGE,
+    InfrahubExternalTransformConfig,
     InfrahubGeneratorDefinitionConfig,
     InfrahubJinja2TransformConfig,
     InfrahubPythonTransformConfig,
@@ -233,6 +234,86 @@ def test_get_python_transform_found(repo_config: InfrahubRepositoryConfig) -> No
 def test_get_python_transform_not_found(repo_config: InfrahubRepositoryConfig) -> None:
     with pytest.raises(ResourceNotDefinedError):
         repo_config.get_python_transform("missing")
+
+
+# --- external_transforms ---
+
+
+def test_external_transforms_parsed() -> None:
+    config = InfrahubRepositoryConfig.model_validate(
+        {
+            "external_transforms": [
+                {
+                    "name": "ansible-startup-config",
+                    "query": "device_startup_config",
+                    "version": "1.5.0",
+                    "description": "Startup configuration",
+                    "timeout": 120,
+                }
+            ]
+        }
+    )
+    assert config.external_transforms == [
+        InfrahubExternalTransformConfig(
+            name="ansible-startup-config",
+            query="device_startup_config",
+            version="1.5.0",
+            description="Startup configuration",
+            timeout=120,
+        )
+    ]
+
+
+def test_external_transform_default_timeout() -> None:
+    item = InfrahubExternalTransformConfig.model_validate({"name": "t", "query": "q", "version": "1"})
+    assert item.timeout == 600
+    assert item.description is None
+
+
+def test_external_transform_empty_version_raises() -> None:
+    with pytest.raises(ValidationError, match="version"):
+        InfrahubExternalTransformConfig.model_validate({"name": "t", "query": "q", "version": ""})
+
+
+def test_external_transform_timeout_below_one_raises() -> None:
+    with pytest.raises(ValidationError, match="timeout"):
+        InfrahubExternalTransformConfig.model_validate({"name": "t", "query": "q", "version": "1", "timeout": 0})
+
+
+def test_external_transform_watch_refused() -> None:
+    with pytest.raises(ValidationError, match="watch"):
+        InfrahubExternalTransformConfig.model_validate(
+            {"name": "t", "query": "q", "version": "1", "watch": {"paths": ["x"]}}
+        )
+
+
+def test_duplicate_external_transforms_raises() -> None:
+    with pytest.raises(ValueError, match="same names"):
+        InfrahubRepositoryConfig.model_validate(
+            {
+                "external_transforms": [
+                    {"name": "dup", "query": "q", "version": "1"},
+                    {"name": "dup", "query": "q2", "version": "2"},
+                ]
+            }
+        )
+
+
+def test_has_external_transform() -> None:
+    config = InfrahubRepositoryConfig.model_validate(
+        {"external_transforms": [{"name": "ext", "query": "q", "version": "1"}]}
+    )
+    assert config.has_external_transform("ext") is True
+    assert config.has_external_transform("missing") is False
+
+
+def test_get_external_transform() -> None:
+    config = InfrahubRepositoryConfig.model_validate(
+        {"external_transforms": [{"name": "ext", "query": "q", "version": "1"}]}
+    )
+    assert config.get_external_transform("ext").version == "1"
+    with pytest.raises(ResourceNotDefinedError):
+        config.get_external_transform("missing")
 
 
 # --- has_query / get_query ---

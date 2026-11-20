@@ -1,0 +1,1 @@
+Added the `external_transforms` section to `.infrahub.yml`. Each entry declares a transformation that an external engine renders, with a `name`, a `query`, a non-empty `version`, an optional `description` and a `timeout` in seconds (default 600, minimum 1). `InfrahubRepositoryConfig` gains `has_external_transform` and `get_external_transform`.

@@ -211,6 +211,17 @@ class InfrahubPythonTransformConfig(InfrahubRepositoryConfigElement):
         return transform_class
 
 
+class InfrahubExternalTransformConfig(InfrahubRepositoryConfigElement):
+    model_config = ConfigDict(extra="forbid")
+    name: str = Field(..., description="The name of the transform")
+    query: str = Field(..., description="The name of the GraphQL Query")
+    version: str = Field(..., min_length=1, description="Version of the external template, part of the fingerprint")
+    description: str | None = Field(default=None, description="Description for this transform")
+    timeout: int = Field(
+        default=600, ge=1, description="Seconds the external engine has to return the rendered artifact"
+    )
+
+
 class InfrahubRepositoryGraphQLConfig(InfrahubRepositoryConfigElement):
     model_config = ConfigDict(extra="forbid")
     name: str = Field(..., description="The name of the GraphQL Query")
@@ -276,6 +287,9 @@ class InfrahubRepositoryConfig(BaseModel):
     python_transforms: list[InfrahubPythonTransformConfig] = Field(
         default_factory=list, description="Python data transformations"
     )
+    external_transforms: list[InfrahubExternalTransformConfig] = Field(
+        default_factory=list, description="Data transformations rendered by an external engine"
+    )
     generator_definitions: list[InfrahubGeneratorDefinitionConfig] = Field(
         default_factory=list, description="Generator definitions"
     )
@@ -291,6 +305,7 @@ class InfrahubRepositoryConfig(BaseModel):
         "jinja2_transforms",
         "artifact_definitions",
         "python_transforms",
+        "external_transforms",
         "generator_definitions",
         "queries",
         "graphql_fragments",
@@ -346,6 +361,15 @@ class InfrahubRepositoryConfig(BaseModel):
             if item.name == name:
                 return item
         raise ResourceNotDefinedError(f"Unable to find {name!r} in 'python_transforms'")
+
+    def has_external_transform(self, name: str) -> bool:
+        return any(item.name == name for item in self.external_transforms)
+
+    def get_external_transform(self, name: str) -> InfrahubExternalTransformConfig:
+        for item in self.external_transforms:
+            if item.name == name:
+                return item
+        raise ResourceNotDefinedError(f"Unable to find {name!r} in 'external_transforms'")
 
     def has_query(self, name: str) -> bool:
         return any(item.name == name for item in self.queries)
