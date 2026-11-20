@@ -372,6 +372,8 @@ class CoreArtifact(CoreTaskTarget):
     content_type: String
     name: String
     parameters: JSONAttributeOptional
+    render_deadline: DateTimeOptional
+    render_request_id: StringOptional
     status: String
     storage_id: StringOptional
     definition: RelationshipAttribute[CoreArtifactDefinition]
@@ -1018,6 +1020,23 @@ class CoreThreadComment(CoreComment):
     thread: RelationshipAttribute[CoreThread]
 
 
+class CoreTransformExternal(CoreTransformation):
+    dependencies: ListAttributeOptional
+    dependencies_complete: BooleanOptional
+    description: StringOptional
+    fingerprint: StringOptional
+    label: StringOptional
+    name: String
+    timeout: Integer
+    version: String
+    artifact_definitions: RelationshipManager[CoreArtifactDefinition]
+    member_of_groups: RelationshipManager[CoreGroup]
+    query: RelationshipAttribute[CoreGraphQLQuery]
+    repository: RelationshipAttribute[CoreGenericRepository]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
+    tags: RelationshipManager[BuiltinTag]
+
+
 class CoreTransformJinja2(CoreTransformation):
     dependencies: ListAttributeOptional
     dependencies_complete: BooleanOptional
@@ -1515,6 +1534,8 @@ class CoreArtifactSync(CoreTaskTargetSync):
     content_type: String
     name: String
     parameters: JSONAttributeOptional
+    render_deadline: DateTimeOptional
+    render_request_id: StringOptional
     status: String
     storage_id: StringOptional
     definition: RelationshipAttributeSync[CoreArtifactDefinitionSync]
@@ -2159,6 +2180,23 @@ class CoreThreadCommentSync(CoreCommentSync):
     member_of_groups: RelationshipManagerSync[CoreGroupSync]
     subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
     thread: RelationshipAttributeSync[CoreThreadSync]
+
+
+class CoreTransformExternalSync(CoreTransformationSync):
+    dependencies: ListAttributeOptional
+    dependencies_complete: BooleanOptional
+    description: StringOptional
+    fingerprint: StringOptional
+    label: StringOptional
+    name: String
+    timeout: Integer
+    version: String
+    artifact_definitions: RelationshipManagerSync[CoreArtifactDefinitionSync]
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    query: RelationshipAttributeSync[CoreGraphQLQuerySync]
+    repository: RelationshipAttributeSync[CoreGenericRepositorySync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
+    tags: RelationshipManagerSync[BuiltinTagSync]
 
 
 class CoreTransformJinja2Sync(CoreTransformationSync):
