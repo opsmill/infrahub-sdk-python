@@ -20,6 +20,7 @@ from ..parameters import CONFIG_PARAM
 from ..utils import catch_exception
 from .migration import (
     BATCH_MAX_SIZE,
+    OUTCOME_ENCRYPTED,
     OUTCOME_FAILED,
     PAGE_MAX_SIZE,
     MigrationError,
@@ -295,7 +296,7 @@ async def encrypt_command(
     Exit codes:
       0    Every object is encrypted, was already encrypted, or was skipped by the server
       1    The server could not encrypt at least one object, or the command failed before the run
-           (for example on a login error, a file error or an unexpected error)
+           (for example on a login error or an unexpected error)
       2    The run stopped on an error from the server or on a state file or report that cannot be used
       130  The run stopped on Ctrl-C (SIGINT)
       143  The run stopped on SIGTERM
@@ -360,7 +361,7 @@ async def encrypt_command(
         else:
             console.print("Nothing was saved to resume from; run the same command again to start again.")
         raise typer.Exit(code=EXIT_TERMINATED if stopped_by == "SIGTERM" else EXIT_INTERRUPTED)
-    if not dry_run and encryptor.totals.counts:
+    if not dry_run and any(outcome != OUTCOME_ENCRYPTED for outcome in encryptor.totals.counts):
         console.print(f"Objects that were not encrypted are listed in {escape(str(report))}.")
     if encryptor.totals.counts.get(OUTCOME_FAILED, 0):
         raise typer.Exit(code=EXIT_OBJECTS_FAILED)

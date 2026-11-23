@@ -130,9 +130,14 @@ def remaining_text(view: ProgressView) -> str:
     return "unknown" if seconds is None else format_duration(seconds)
 
 
+def _format_rate(rate: float) -> str:
+    """Show one decimal below 10 objects per second, so that a slow rate is not shown as 0."""
+    return f"{rate:,.1f}" if rate < 10 else f"{rate:,.0f}"
+
+
 def progress_line(view: ProgressView) -> str:
     """Return the progress line: done / total, percent, rate, remaining time, bytes, limit, 429 answers, retries."""
-    rate = "estimating" if view.rate is None else f"{view.rate:,.0f} objects/s"
+    rate = "estimating" if view.rate is None else f"{_format_rate(view.rate)} objects/s"
     parts: list[str] = []
     if view.total_objects is None:
         parts.extend([f"{format_number(view.done_objects)} objects", rate, format_bytes(view.done_bytes)])

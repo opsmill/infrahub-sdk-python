@@ -202,8 +202,28 @@ def test_the_progress_line_says_estimating_until_there_is_a_rate() -> None:
 def test_the_progress_line_with_a_rate_of_zero_does_not_divide_by_zero() -> None:
     line = progress_line(view(rate=0.0))
 
-    assert "0 objects/s" in line
+    assert "0.0 objects/s" in line
     assert "remaining unknown" in line
+
+
+@dataclass
+class RateCase:
+    name: str
+    rate: float
+    expected: str
+
+
+RATE_CASES = [
+    RateCase(name="a_slow_rate_keeps_one_decimal", rate=0.4, expected="0.4 objects/s"),
+    RateCase(name="just_below_ten", rate=9.4, expected="9.4 objects/s"),
+    RateCase(name="ten_is_whole", rate=10.0, expected="10 objects/s"),
+    RateCase(name="a_fast_rate_has_a_thousands_separator", rate=1234.4, expected="1,234 objects/s"),
+]
+
+
+@pytest.mark.parametrize("case", [pytest.param(case, id=case.name) for case in RATE_CASES])
+def test_the_progress_line_shows_one_decimal_for_a_rate_below_ten_objects_a_second(case: RateCase) -> None:
+    assert f"| {case.expected} |" in progress_line(view(rate=case.rate))
 
 
 def test_the_progress_line_with_nothing_to_process() -> None:

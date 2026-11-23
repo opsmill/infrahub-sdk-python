@@ -86,6 +86,31 @@ def test_objects_the_server_skips_do_not_fail_the_run_and_are_reported(
     assert json.loads((tmp_path / "report.jsonl").read_text())["identifier"] == "a"
 
 
+def test_a_run_that_encrypts_every_object_does_not_point_to_the_report(
+    httpx_mock: HTTPXMock, files: list[str], tmp_path: Path
+) -> None:
+    httpx_mock.add_response(url=f"{LIST_URL}?limit=5000", json=page("a", "b"))
+    httpx_mock.add_response(method="POST", url=BATCH_URL, json=answer("a", "b"))
+
+    result = invoke(files)
+
+    assert result.exit_code == 0, result.stdout
+    assert "were not encrypted" not in result.stdout
+    assert (tmp_path / "report.jsonl").stat().st_size == 0
+
+
+def test_a_run_that_leaves_an_object_unchanged_points_to_the_report(
+    httpx_mock: HTTPXMock, files: list[str], tmp_path: Path
+) -> None:
+    httpx_mock.add_response(url=f"{LIST_URL}?limit=5000", json=page("a", "b"))
+    httpx_mock.add_response(method="POST", url=BATCH_URL, json=answer("a", "b", outcome="already_encrypted"))
+
+    result = invoke(files)
+
+    assert result.exit_code == 0, result.stdout
+    assert f"were not encrypted are listed in {tmp_path / 'report.jsonl'}" in result.stdout.replace("\n", " ")
+
+
 def test_an_object_that_failed_makes_the_exit_code_1(httpx_mock: HTTPXMock, files: list[str]) -> None:
     httpx_mock.add_response(url=f"{LIST_URL}?limit=5000", json=page("a"))
     httpx_mock.add_response(method="POST", url=BATCH_URL, json=answer("a", outcome="failed", reason="disk full"))
