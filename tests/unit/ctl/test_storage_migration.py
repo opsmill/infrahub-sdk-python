@@ -26,10 +26,11 @@ from infrahub_sdk.ctl.storage.migration import (
     backoff_delay,
     parse_retry_after,
     parse_timestamp,
+    server_detail,
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Callable, Iterator
     from pathlib import Path
 
     from pytest_httpx import HTTPXMock
@@ -1847,3 +1848,69 @@ async def test_the_count_and_the_run_agree_on_pages_that_are_empty_or_end_beyond
     assert asked == [None, "b", "e", "f"] * 2
     assert encryptor.remaining_objects == encryptor.total_objects == encryptor.done_objects == 3
     assert encryptor.done_bytes == encryptor.total_bytes == 300
+
+
+class RecordingLimit(AdaptiveLimit):
+    """An adaptive limit that keeps the latency samples it is given."""
+
+    def __init__(self, maximum: int, minimum: int, slow_factor: float, clock: Callable[[], float]) -> None:
+        super().__init__(maximum=maximum, minimum=minimum, slow_factor=slow_factor, clock=clock)
+        self.observed: list[float] = []
+
+    def observe(self, seconds: float) -> None:
+        self.observed.append(seconds)
+        super().observe(seconds)
+
+
+async def test_the_pace_of_the_command_is_not_counted_as_the_latency_of_the_server(
+    httpx_mock: HTTPXMock, tmp_path: Path
+) -> None:
+    identifiers = ["a", "b", "c", "d", "e", "f"]
+    encryptor, fake = make(tmp_path, concurrency=8, batch_size=1, rate=1.0)
+    encryptor.limit = RecordingLimit(maximum=8, minimum=1, slow_factor=2.0, clock=fake.clock)
+
+    def server_that_takes_a_tenth_of_a_second(request: httpx.Request) -> httpx.Response:
+        fake.now += 0.1
+        return httpx.Response(200, json=answer(*json.loads(request.content)["identifiers"]))
+
+    httpx_mock.add_response(url=f"{LIST_URL}?limit=5000", json=page(*identifiers))
+    for _ in identifiers:
+        httpx_mock.add_callback(server_that_takes_a_tenth_of_a_second, method="POST", url=BATCH_URL)
+
+    await run(encryptor)
+
+    assert encryptor.totals.counts == {"encrypted": 6}
+    assert sum(fake.sleeps) > 4.0
+    assert len(encryptor.limit.observed) == 6
+    assert max(encryptor.limit.observed) < 0.11
+
+
+@dataclass
+class ServerTextCase:
+    name: str
+    response: httpx.Response
+    expected: str
+
+
+SERVER_TEXT_CASES = [
+    ServerTextCase(
+        name="plain_text",
+        response=httpx.Response(500, text="boom \x1b[31mred\x07 end"),
+        expected="boom  [31mred  end",
+    ),
+    ServerTextCase(
+        name="detail",
+        response=httpx.Response(409, json={"detail": "refused\x1b]0;title\x07"}),
+        expected="refused ]0;title ",
+    ),
+    ServerTextCase(
+        name="graphql_errors",
+        response=httpx.Response(200, json={"errors": [{"message": "one\r\ntwo"}, {"message": "three\x9b"}]}),
+        expected="one  two; three ",
+    ),
+]
+
+
+@pytest.mark.parametrize("case", [pytest.param(case, id=case.name) for case in SERVER_TEXT_CASES])
+def test_the_text_of_a_server_error_has_no_control_characters(case: ServerTextCase) -> None:
+    assert server_detail(case.response) == case.expected

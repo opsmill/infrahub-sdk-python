@@ -415,8 +415,11 @@ class StorageEncryptor:
         path: str,
         params: dict[str, Any],
         body: dict[str, Any] | None = None,
-    ) -> httpx.Response:
+    ) -> tuple[httpx.Response, float]:
         """Send one request until the server answers it, waiting out 429 responses and transient failures.
+
+        Returns the answer and the seconds that the HTTP call that produced it took, without the time spent
+        waiting for the pace, a pause after a 429 answer or a delay after a failure.
 
         Raises:
             MigrationError: If the failures other than 429 outnumber the retries allowed.
@@ -429,6 +432,7 @@ class StorageEncryptor:
             await self._pacer.wait()
             self.totals.requests += 1
             generation = self._auth_generation
+            call_started = self._clock()
             try:
                 response = await http.request(method, path, params=params, json=body)
             except httpx.TransportError as exc:
@@ -436,6 +440,7 @@ class StorageEncryptor:
                 self._check_retries(failures=failures, path=path, cause=f"{type(exc).__name__}: {exc}")
                 await self._sleep(backoff_delay(attempt=failures, rng=self._rng))
                 continue
+            call_seconds = self._clock() - call_started
             self._answered = True
             if response.status_code == HTTP_TOO_MANY_REQUESTS:
                 sheds += 1
@@ -466,7 +471,7 @@ class StorageEncryptor:
                 refreshed = True
                 await self._renew_login(http, self.refresh_login, seen_generation=generation)
                 continue
-            return response
+            return response, call_seconds
 
     def _notify(self, message: str) -> None:
         if self.on_notice is not None:
@@ -504,7 +509,7 @@ class StorageEncryptor:
         params: dict[str, Any] = {"limit": limit}
         if start_after:
             params["start_after"] = start_after
-        response = await self._request(http, "GET", LIST_PATH, params)
+        response, _ = await self._request(http, "GET", LIST_PATH, params)
         if response.status_code != HTTP_OK:
             raise MigrationError(refusal_message(response=response, what="The listing of the stored objects"))
         body = answer_body(response, what="The listing of the stored objects")
@@ -534,12 +539,10 @@ class StorageEncryptor:
             "allow_unverified": self.options.allow_unverified,
         }
         await self.limit.acquire()
-        started = self._clock()
         try:
-            response = await self._request(http, "POST", BATCH_PATH, {}, body)
+            response, seconds = await self._request(http, "POST", BATCH_PATH, {}, body)
         finally:
             await self.limit.release()
-        seconds = self._clock() - started
         self.totals.encrypt_requests += 1
         if response.status_code != HTTP_OK:
             raise MigrationError(refusal_message(response=response, what="The request to encrypt a batch"))
@@ -757,18 +760,23 @@ def refusal_message(response: httpx.Response, what: str) -> str:
     return f"{what} was refused with HTTP {status}.{suffix}"
 
 
+def printable(text: str) -> str:
+    """Replace the characters that a terminal would act on, such as escape sequences, with spaces."""
+    return "".join(char if char.isprintable() else " " for char in text)
+
+
 def server_detail(response: httpx.Response) -> str:
-    """Return the message a server error carries, or the start of its body."""
+    """Return the message a server error carries, or the start of its body, safe to print."""
     try:
         body = response.json()
     except ValueError:
-        return response.text[:300]
+        return printable(response.text[:300])
     if isinstance(body, dict):
         if isinstance(body.get("detail"), str):
-            return str(body["detail"])[:300]
+            return printable(str(body["detail"])[:300])
         errors = body.get("errors")
         if isinstance(errors, list):
             messages = [str(item["message"]) for item in errors if isinstance(item, dict) and "message" in item]
             if messages:
-                return "; ".join(messages)[:300]
-    return response.text[:300]
+                return printable("; ".join(messages)[:300])
+    return printable(response.text[:300])
