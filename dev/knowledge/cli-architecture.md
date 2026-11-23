@@ -11,7 +11,7 @@ The main Typer app lives in `infrahub_sdk/ctl/cli_commands.py`. It is re-exporte
 Commands are organized in two tiers:
 
 - **Root commands** are registered directly on the main app with `app.command()`. These are standalone operations that don't belong to a logical group (e.g. `dump`, `load`, `check`, `render`, `run`, `transform`, `protocols`, `version`, `info`).
-- **Subcommand groups** are separate `AsyncTyper()` instances registered with `app.add_typer(sub_app, name="group")`. Each group lives in its own module under `infrahub_sdk/ctl/`. Current groups: `branch`, `schema`, `validate`, `repository`, `menu`, `object`, `graphql`, `task`, `storage`.
+- **Subcommand groups** are separate `AsyncTyper()` instances registered with `app.add_typer(sub_app, name="group")`. Each group lives in its own module under `infrahub_sdk/ctl/`. Current groups: `branch`, `schema`, `validate`, `repository`, `menu`, `object`, `graphql`, `task`, `marketplace`, `storage`, `telemetry`, `troubleshooting`.
 
 ## Adding a new command
 
