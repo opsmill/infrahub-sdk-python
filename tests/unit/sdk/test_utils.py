@@ -150,7 +150,7 @@ def test_str_to_bool() -> None:
     assert str_to_bool("False") is False
     assert str_to_bool("f") is False
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="NotABool can not be converted into a boolean"):
         str_to_bool("NotABool")
 
     with pytest.raises(TypeError):

@@ -1,4 +1,5 @@
 import inspect
+import re
 from collections.abc import Generator
 from io import StringIO
 from unittest import mock
@@ -166,12 +167,12 @@ async def test_add_dropdown_option_raises(
     if client_type == "standard":
         with pytest.raises(SchemaNotFoundError):
             await clients.standard.schema.add_dropdown_option("DoesNotExist", "atribute", "option")
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Unable to find the attribute attribute"):
             await clients.standard.schema.add_dropdown_option("BuiltinTag", "attribute", "option")
     else:
         with pytest.raises(SchemaNotFoundError):
             clients.sync.schema.add_dropdown_option("DoesNotExist", "atribute", "option")
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Unable to find the attribute attribute"):
             clients.sync.schema.add_dropdown_option("BuiltinTag", "attribute", "option")
 
 
@@ -180,12 +181,12 @@ async def test_add_enum_option_raises(clients: BothClients, client_type: str, mo
     if client_type == "standard":
         with pytest.raises(SchemaNotFoundError):
             await clients.standard.schema.add_enum_option("DoesNotExist", "atribute", "option")
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Unable to find the attribute attribute"):
             await clients.standard.schema.add_enum_option("BuiltinTag", "attribute", "option")
     else:
         with pytest.raises(SchemaNotFoundError):
             clients.sync.schema.add_enum_option("DoesNotExist", "atribute", "option")
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Unable to find the attribute attribute"):
             clients.sync.schema.add_enum_option("BuiltinTag", "attribute", "option")
 
 
@@ -196,12 +197,12 @@ async def test_remove_dropdown_option_raises(
     if client_type == "standard":
         with pytest.raises(SchemaNotFoundError):
             await clients.standard.schema.remove_dropdown_option("DoesNotExist", "atribute", "option")
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Unable to find the attribute attribute"):
             await clients.standard.schema.remove_dropdown_option("BuiltinTag", "attribute", "option")
     else:
         with pytest.raises(SchemaNotFoundError):
             clients.sync.schema.remove_dropdown_option("DoesNotExist", "atribute", "option")
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Unable to find the attribute attribute"):
             clients.sync.schema.remove_dropdown_option("BuiltinTag", "attribute", "option")
 
 
@@ -212,13 +213,13 @@ async def test_remove_enum_option_raises(
     if client_type == "standard":
         with pytest.raises(SchemaNotFoundError):
             await clients.standard.schema.remove_enum_option("DoesNotExist", "atribute", "option")
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Unable to find the attribute attribute"):
             await clients.standard.schema.remove_enum_option("BuiltinTag", "attribute", "option")
     else:
         with pytest.raises(SchemaNotFoundError):
-            clients.sync.schema.add_enum_option("DoesNotExist", "atribute", "option")
-        with pytest.raises(ValueError):
-            clients.sync.schema.add_enum_option("BuiltinTag", "attribute", "option")
+            clients.sync.schema.remove_enum_option("DoesNotExist", "atribute", "option")
+        with pytest.raises(ValueError, match="Unable to find the attribute attribute"):
+            clients.sync.schema.remove_enum_option("BuiltinTag", "attribute", "option")
 
 
 @pytest.mark.parametrize("client_type", client_types)
@@ -316,7 +317,7 @@ async def test_infrahub_repository_config_getters() -> None:
 
 
 async def test_infrahub_repository_config_dups() -> None:
-    with pytest.raises(ValueError) as exc:
+    with pytest.raises(ValueError, match=re.escape("Found multiples element with the same names: ['rfile02']")):
         InfrahubRepositoryConfig(
             jinja2_transforms=[
                 InfrahubJinja2TransformConfig(name="rfile01", query="query01", template_path="."),
@@ -325,9 +326,9 @@ async def test_infrahub_repository_config_dups() -> None:
             ],
         )
 
-    assert "Found multiples element with the same names: ['rfile02']" in str(exc.value)
-
-    with pytest.raises(ValueError) as exc:
+    with pytest.raises(
+        ValueError, match=re.escape("Found multiples element with the same names: ['check01', 'check02']")
+    ):
         InfrahubRepositoryConfig(
             check_definitions=[
                 InfrahubCheckDefinitionConfig(name="check01", file_path=".", parameters={}, class_name="MyClass"),
@@ -338,8 +339,6 @@ async def test_infrahub_repository_config_dups() -> None:
                 InfrahubCheckDefinitionConfig(name="check03", file_path=".", parameters={}, class_name="MyClass"),
             ],
         )
-
-    assert "Found multiples element with the same names: ['check01', 'check02']" in str(exc.value)
 
 
 async def test_python_transform_config_description() -> None:

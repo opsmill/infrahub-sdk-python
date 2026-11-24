@@ -368,7 +368,7 @@ class TestInfrahubClientSync(TestInfrahubDockerClient, SchemaAnimal):
         # Fourth execution, validate that the group will not be updated if there is an exception
         nbr_tags = 3
         with (
-            pytest.raises(ValueError),
+            pytest.raises(ValueError, match="something happened"),
             client_sync.start_tracking(params={"person_name": person_name}, delete_unused_nodes=True) as clt,
         ):
             create_person_with_tags(clt=clt, nbr_tags=nbr_tags)

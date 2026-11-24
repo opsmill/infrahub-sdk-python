@@ -367,7 +367,7 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaAnimal):
 
         # Fourth execution, validate that the group will not be updated if there is an exception
         nbr_tags = 3
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="something happened"):
             async with client.start_tracking(params={"person_name": person_name}, delete_unused_nodes=True) as clt:
                 await create_person_with_tags(clt=clt, nbr_tags=nbr_tags)
                 raise ValueError("something happened")
