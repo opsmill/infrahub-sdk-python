@@ -459,7 +459,7 @@ class InfrahubNodeBase:
             bool: ``True`` when the node inherits from ``CoreResourcePool``.
 
         """
-        return hasattr(self._schema, "inherit_from") and "CoreResourcePool" in self._schema.inherit_from  # type: ignore[union-attr]
+        return hasattr(self._schema, "inherit_from") and "CoreResourcePool" in self._schema.inherit_from
 
     def _pool_allocated_query(self, edge_fields: Sequence[str]) -> str:
         return Query(
@@ -1293,7 +1293,7 @@ class InfrahubNode(InfrahubNodeBase):
             if dest is None:
                 raise ValueError("skip_if_unchanged requires dest to be provided")
             if dest.exists() and dest.is_file():
-                server_checksum = self.checksum  # type: ignore[attr-defined]
+                server_checksum = self.checksum
                 if server_checksum.value is not None and sha1_of_source(dest) == server_checksum.value:  # type: ignore[union-attr]
                     return 0
 
@@ -1330,7 +1330,7 @@ class InfrahubNode(InfrahubNodeBase):
         """
         self._validate_file_object_support(message=MATCHES_LOCAL_CHECKSUM_FEATURE_NOT_SUPPORTED_MESSAGE)
 
-        server_checksum = self.checksum  # type: ignore[attr-defined]
+        server_checksum = self.checksum
         if server_checksum.value is None:  # type: ignore[union-attr]
             raise ValueError(
                 f"{self._schema.kind} node has no server-side checksum; "
@@ -1386,7 +1386,7 @@ class InfrahubNode(InfrahubNodeBase):
             raise ValueError("name is required when source is bytes or BinaryIO")
 
         # Short-circuit only if we have a server checksum to compare against.
-        server_checksum = self.checksum  # type: ignore[attr-defined]
+        server_checksum = self.checksum
         have_server_state = bool(self.id) and server_checksum.value is not None  # type: ignore[union-attr]
 
         # Compute digest before staging — source may only be readable once.
@@ -1684,8 +1684,8 @@ class InfrahubNode(InfrahubNodeBase):
                 continue
 
             if (
-                rel_schema.cardinality == RelationshipCardinality.MANY  # type: ignore[union-attr]
-                and rel_schema.kind not in {RelationshipKind.ATTRIBUTE, RelationshipKind.PARENT}  # type: ignore[union-attr]
+                rel_schema.cardinality == RelationshipCardinality.MANY
+                and rel_schema.kind not in {RelationshipKind.ATTRIBUTE, RelationshipKind.PARENT}
                 and not (include and rel_name in include)
             ):
                 continue
@@ -2645,7 +2645,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
             if dest is None:
                 raise ValueError("skip_if_unchanged requires dest to be provided")
             if dest.exists() and dest.is_file():
-                server_checksum = self.checksum  # type: ignore[attr-defined]
+                server_checksum = self.checksum
                 if server_checksum.value is not None and sha1_of_source(dest) == server_checksum.value:  # type: ignore[union-attr]
                     return 0
 
@@ -2682,7 +2682,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
         """
         self._validate_file_object_support(message=MATCHES_LOCAL_CHECKSUM_FEATURE_NOT_SUPPORTED_MESSAGE)
 
-        server_checksum = self.checksum  # type: ignore[attr-defined]
+        server_checksum = self.checksum
         if server_checksum.value is None:  # type: ignore[union-attr]
             raise ValueError(
                 f"{self._schema.kind} node has no server-side checksum; "
@@ -2738,7 +2738,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
             raise ValueError("name is required when source is bytes or BinaryIO")
 
         # Short-circuit only if we have a server checksum to compare against.
-        server_checksum = self.checksum  # type: ignore[attr-defined]
+        server_checksum = self.checksum
         have_server_state = bool(self.id) and server_checksum.value is not None  # type: ignore[union-attr]
 
         # Compute digest before staging — source may only be readable once.
@@ -3029,8 +3029,8 @@ class InfrahubNodeSync(InfrahubNodeBase):
                 continue
 
             if (
-                rel_schema.cardinality == RelationshipCardinality.MANY  # type: ignore[union-attr]
-                and rel_schema.kind not in {RelationshipKind.ATTRIBUTE, RelationshipKind.PARENT}  # type: ignore[union-attr]
+                rel_schema.cardinality == RelationshipCardinality.MANY
+                and rel_schema.kind not in {RelationshipKind.ATTRIBUTE, RelationshipKind.PARENT}
                 and not (include and rel_name in include)
             ):
                 continue

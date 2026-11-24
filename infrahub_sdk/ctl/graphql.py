@@ -146,7 +146,7 @@ async def query_report(
 
     if online:
         node = await client.get(
-            kind=CoreGraphQLQuery,  # type: ignore[type-abstract]
+            kind=CoreGraphQLQuery,
             name__value=name,
             branch=branch,
             raise_when_missing=False,

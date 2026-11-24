@@ -165,12 +165,6 @@ python-version = "3.10"
 [tool.ty.rules]
 possibly-missing-attribute = "error"
 
-[[tool.ty.overrides]]
-include = ["infrahub_sdk/**"]
-
-[tool.ty.overrides.rules]
-unused-ignore-comment = "ignore" # Clashes with mypy's type ignore comments
-
 # File-specific overrides for remaining type violations
 # Fix these incrementally by addressing violations and removing the override
 
@@ -244,12 +238,6 @@ include = ["infrahub_sdk/ctl/config.py", "tests/unit/test_packaging_metadata.py"
 [tool.ty.overrides.rules]
 unresolved-import = "ignore"
 
-
-[[tool.ty.overrides]]
-include = ["tests/**"]
-
-[tool.ty.overrides.rules]
-unused-ignore-comment = "ignore" # Clashes with mypy's type ignore comments
 
 [[tool.ty.overrides]]
 include = ["tests/fixtures/**"]
@@ -374,6 +362,7 @@ invalid-assignment = "ignore"
 pretty = true
 ignore_missing_imports = true
 disallow_untyped_defs = true
+warn_unused_ignores = true
 
 [[tool.mypy.overrides]]
 module = "infrahub_sdk.ctl.check"
