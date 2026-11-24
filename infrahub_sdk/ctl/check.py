@@ -5,7 +5,7 @@ import sys
 from asyncio import run as aiorun
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import typer
 from rich.console import Console
@@ -133,7 +133,7 @@ async def run_targeted_check(
     variables: dict[str, str],
     branch: str | None = None,
 ) -> bool:
-    filters = {}
+    filters: dict[str, Any] = {}
     param_value = list(check_module.definition.parameters.values())
     if param_value:
         filters[param_value[0]] = check_module.definition.targets

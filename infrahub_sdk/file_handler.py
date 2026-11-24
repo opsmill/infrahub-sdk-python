@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, BinaryIO, cast, overload
 
 import anyio
+import anyio.to_thread
 import httpx
 
 from .exceptions import (

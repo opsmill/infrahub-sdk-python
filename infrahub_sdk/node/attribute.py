@@ -136,12 +136,12 @@ class Attribute:
         self.updated_by: NodeProperty | None = None
 
         for prop_name in self._properties_object:
-            if data.get(prop_name):
-                setattr(self, prop_name, NodeProperty(data=data.get(prop_name)))  # type: ignore[arg-type]
+            if prop_data := data.get(prop_name):
+                setattr(self, prop_name, NodeProperty(data=prop_data))
 
         for prop_name in ATTRIBUTE_METADATA_OBJECT:
-            if data.get(prop_name):
-                setattr(self, prop_name, NodeProperty(data=data.get(prop_name)))  # type: ignore[arg-type]
+            if prop_data := data.get(prop_name):
+                setattr(self, prop_name, NodeProperty(data=prop_data))
 
     @property
     def value(self) -> Any:
