@@ -2492,7 +2492,7 @@ class InfrahubClient(BaseClient):
         for branch_name, branch in branches.items():
             batch.add(
                 task=self.all,
-                node=branch,  # type: ignore[arg-type]
+                node=branch,
                 kind=kind,
                 branch=branch_name,
                 fragment=True,

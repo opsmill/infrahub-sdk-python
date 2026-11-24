@@ -237,7 +237,7 @@ def test_use_enum_values_keeps_runtime_field_values_as_plain_strings() -> None:
     # both the raw string and the enum member holds and serialization is unchanged.
     # Passing the raw string is intentional here: the field is typed as the enum, but the point of
     # this test is that pydantic coerces a plain string at runtime, so the static complaint is expected.
-    relationship = write_module.RelationshipSchemaWrite(name="interfaces", peer="InfraInterface", cardinality="one")  # ty: ignore[invalid-argument-type]
+    relationship = write_module.RelationshipSchemaWrite(name="interfaces", peer="InfraInterface", cardinality="one")
     assert relationship.cardinality == "one"
     assert relationship.cardinality == enums_module.RelationshipCardinality.ONE
     assert isinstance(relationship.cardinality, str)
