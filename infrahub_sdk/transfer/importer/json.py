@@ -168,7 +168,7 @@ class LineDelimitedJSONImporter(ImporterInterface):
             src_node_relationship = src_node._schema.get_relationship_by_identifier(relationship["node"]["identifier"])
             if src_node_relationship:
                 update_batch.add(
-                    task=src_node.add_relationships,  # type: ignore[arg-type]
+                    task=src_node.add_relationships,
                     node=src_node,
                     relation_to_update=src_node_relationship.name,
                     related_nodes=[dst_node.id],
