@@ -162,10 +162,8 @@ async def test_validate_method_signature(
 
 
 def test_init_with_invalid_address() -> None:
-    with pytest.raises(ValueError) as exc:
+    with pytest.raises(ValueError, match="The configured address is not a valid url"):
         InfrahubClient(address="missing-schema")
-
-    assert "The configured address is not a valid url" in str(exc.value)
 
 
 async def test_get_repositories(

@@ -25,10 +25,8 @@ async def test_class_init(tmp_path: Path) -> None:
     class IFCheckNoName(InfrahubCheck):
         query = "my_query"
 
-    with pytest.raises(ValueError) as exc:
+    with pytest.raises(ValueError, match="A query must be provided"):
         check = IFCheckNoQuery()
-
-    assert "A query must be provided" in str(exc.value)
 
     check = IFCheckWithName()
     assert check.name == "my_check"
