@@ -26,7 +26,7 @@ def test_format_timestamp_with_timezone() -> None:
 def test_format_timestamp_invalid() -> None:
     """Test format_timestamp with invalid timestamp returns original."""
     timestamp = "not-a-timestamp"
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="Invalid isoformat string: 'not-a-timestamp'"):
         format_timestamp(timestamp)
 
 
