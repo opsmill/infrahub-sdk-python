@@ -243,7 +243,6 @@ unresolved-import = "ignore"
 include = ["tests/fixtures/**"]
 
 [tool.ty.overrides.rules]
-possibly-missing-attribute = "ignore" # Test fixtures use dynamic attributes
 unresolved-attribute = "ignore" # 5 violations - fixtures use dynamic node attributes
 
 # Test-specific overrides - tests have more lenient type checking
@@ -253,7 +252,7 @@ unresolved-attribute = "ignore" # 5 violations - fixtures use dynamic node attri
 include = ["tests/unit/sdk/conftest.py"]
 
 [tool.ty.overrides.rules]
-invalid-argument-type = "ignore" # 434 violations - test fixtures with dynamic types
+invalid-argument-type = "ignore" # 270 violations - test fixtures with dynamic types
 
 [[tool.ty.overrides]]
 include = ["tests/unit/ctl/test_utils.py"]
@@ -269,12 +268,11 @@ include = [
 ]
 
 [tool.ty.overrides.rules]
-invalid-argument-type = "ignore" # 97 violations total across these files
+invalid-argument-type = "ignore" # 199 violations total across these files
 invalid-assignment = "ignore"
 not-subscriptable = "ignore"
 not-iterable = "ignore"
 unresolved-attribute = "ignore"
-possibly-missing-attribute = "ignore"
 
 [[tool.ty.overrides]]
 include = [
@@ -284,11 +282,10 @@ include = [
 ]
 
 [tool.ty.overrides.rules]
-invalid-argument-type = "ignore" # ~120 violations across integration tests
+invalid-argument-type = "ignore" # 17 violations across integration tests
 invalid-assignment = "ignore"
 no-matching-overload = "ignore"
-possibly-missing-attribute = "ignore" # Tests use dynamic node attributes
-unresolved-attribute = "ignore" # ~205 violations - `node.<field>.value` resolves to a union of attribute/relationship types
+unresolved-attribute = "ignore" # 325 violations - `node.<field>.value` resolves to a union of attribute/relationship types
 
 [[tool.ty.overrides]]
 include = [
@@ -298,9 +295,8 @@ include = [
 ]
 
 [tool.ty.overrides.rules]
-invalid-argument-type = "ignore" # 25 violations
+invalid-argument-type = "ignore" # 12 violations
 invalid-assignment = "ignore"
-possibly-missing-attribute = "ignore"
 unresolved-attribute = "ignore" # 1 violation in test_client.py
 
 [[tool.ty.overrides]]
