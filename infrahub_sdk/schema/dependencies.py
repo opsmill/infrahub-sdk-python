@@ -115,6 +115,9 @@ class DeletionOrder:
         Args:
             node_peers: The mandatory peer ids of each node named by `peer_lookups`.
 
+        Raises:
+            RuntimeError: If the kinds cannot be ordered, so that no candidate is left out of the order.
+
         """
         node_peers = node_peers or {}
         block_key = {kind: block[0] for block in self.blocks for kind in block}
@@ -122,7 +125,9 @@ class DeletionOrder:
             block[0]: {block_key[peer_kind] for kind in block for peer_kind in self.graph[kind]} - {block[0]}
             for block in self.blocks
         }
-        block_order = dependents_first(dependencies=block_graph, order=self.kinds) or []
+        block_order = dependents_first(dependencies=block_graph, order=self.kinds)
+        if block_order is None:
+            raise RuntimeError("The strongly connected components of the kinds to delete form a cycle")
         blocks = {block[0]: block for block in self.blocks}
 
         ordered: list[tuple[str, str]] = []

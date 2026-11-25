@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import pytest
+
+from infrahub_sdk.schema import dependencies
 from infrahub_sdk.schema.dependencies import DeletionOrder, PeerLookup
 from tests.helpers.schemas import generic_schema, mandatory, node_schema, node_schemas
 
@@ -147,3 +150,15 @@ def test_deletion_order_orders_the_other_nodes_around_a_cycle() -> None:
     order = DeletionOrder(candidates=candidates, schemas=schemas)
 
     assert order.order(node_peers=member_peers) == [("ReproChain", member_id) for member_id in (c, b, a, x, y)]
+
+
+def test_deletion_order_raises_when_the_kinds_cannot_be_ordered(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Without an order of the kinds, the candidates of known kinds must not be dropped."""
+    schemas = node_schemas(
+        node_schema("Target"), node_schema("Dependent", relationships=[mandatory("target", "ReproTarget")])
+    )
+    order = DeletionOrder(candidates=[("ReproTarget", TARGET_ID), ("ReproDependent", DEPENDENT_ID)], schemas=schemas)
+    monkeypatch.setattr(dependencies, "dependents_first", lambda **_: None)
+
+    with pytest.raises(RuntimeError, match="components of the kinds to delete form a cycle"):
+        order.order()
