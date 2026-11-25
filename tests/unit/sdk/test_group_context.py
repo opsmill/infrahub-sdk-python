@@ -523,6 +523,17 @@ def test_reap_result_failure_prefers_the_error_that_stopped_the_reap() -> None:
     assert ReapResult().failure() is None
 
 
+def test_reap_result_failure_prefers_the_stopping_error_then_the_ordering_error() -> None:
+    """The ordering failure is raised over refusals, but not over an error that stopped the reap."""
+    interruption = ServerNotResponsiveError(url="http://mock/graphql/main")
+    ordering_error = RecursionError("maximum recursion depth exceeded")
+    refusals = {"refused1": MANDATORY_RELATIONSHIP_ERROR}
+
+    assert ReapResult(refused=refusals, error=interruption, ordering_error=ordering_error).failure() is interruption
+    assert ReapResult(refused=refusals, ordering_error=ordering_error).failure() is ordering_error
+    assert ReapResult(refused=refusals, ordering_error=ordering_error).retained_member_ids == ["refused1"]
+
+
 def test_reap_result_retains_refused_and_unattempted_members() -> None:
     result = ReapResult(refused={"refused1": MANDATORY_RELATIONSHIP_ERROR}, unattempted=["unattempted1"])
     assert result.retained_member_ids == ["refused1", "unattempted1"]
@@ -673,26 +684,60 @@ async def test_member_held_from_outside_the_group_is_kept_and_reported(
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_failed_peer_query_stops_the_reap_and_keeps_every_member(
+async def test_failed_peer_query_deletes_in_group_order_and_raises_after_the_group_write(
     clients: BothClients, client_type: str, schema_query_05_data: dict, httpx_mock: HTTPXMock
 ) -> None:
-    """Without the order nothing is deleted: every member stays in the group and the failure is raised."""
+    """Without the order the members are deleted in group order, and the failure is raised once the group is written."""
     schema = _schema_with(
         schema_query_05_data, node_schema("Chain", relationships=[mandatory("previous", "ReproChain")])
     )
     members = [("ReproChain", member_id) for member_id in CHAIN_IDS]
     httpx_mock.add_response(method="POST", url="http://mock/graphql/main", json=_group_with_members(members))
     httpx_mock.add_exception(httpx.ReadTimeout("read timed out"), method="POST", url="http://mock/graphql/main")
+    for _ in CHAIN_IDS:
+        httpx_mock.add_response(method="POST", url="http://mock/graphql/main", json=_delete_response("ReproChain"))
     httpx_mock.add_response(method="POST", url="http://mock/graphql/main", json=UPSERT_RESPONSE)
 
     with pytest.raises(ServerNotResponsiveError, match="Unable to read from"):
         await _track_nothing(clients=clients, client_type=client_type, schema=schema)
 
     requests = httpx_mock.get_requests()
-    assert len(requests) == 3
-    assert _deleted_ids(requests, CHAIN_IDS) == []
+    assert len(requests) == 6
+    assert _deleted_ids(requests, CHAIN_IDS) == CHAIN_IDS
     upsert = requests[-1].read().decode()
-    assert all(member_id in upsert for member_id in CHAIN_IDS)
+    assert "Upsert" in upsert
+    assert not any(member_id in upsert for member_id in CHAIN_IDS)
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_failed_peer_query_keeps_the_refused_member_and_raises_the_ordering_failure(
+    clients: BothClients, client_type: str, schema_query_05_data: dict, httpx_mock: HTTPXMock
+) -> None:
+    """A member refused during the group-order fallback stays in the group; the ordering failure is still raised."""
+    schema = _schema_with(
+        schema_query_05_data, node_schema("Chain", relationships=[mandatory("previous", "ReproChain")])
+    )
+    members = [("ReproChain", member_id) for member_id in CHAIN_IDS]
+    httpx_mock.add_response(method="POST", url="http://mock/graphql/main", json=_group_with_members(members))
+    httpx_mock.add_exception(httpx.ReadTimeout("read timed out"), method="POST", url="http://mock/graphql/main")
+    httpx_mock.add_response(
+        method="POST",
+        url="http://mock/graphql/main",
+        json={"data": None, "errors": [{"message": MANDATORY_RELATIONSHIP_ERROR}]},
+    )
+    for _ in CHAIN_IDS[1:]:
+        httpx_mock.add_response(method="POST", url="http://mock/graphql/main", json=_delete_response("ReproChain"))
+    httpx_mock.add_response(method="POST", url="http://mock/graphql/main", json=UPSERT_RESPONSE)
+
+    with pytest.raises(ServerNotResponsiveError, match="Unable to read from"):
+        await _track_nothing(clients=clients, client_type=client_type, schema=schema)
+
+    requests = httpx_mock.get_requests()
+    assert len(requests) == 6
+    assert _deleted_ids(requests, CHAIN_IDS) == CHAIN_IDS
+    upsert = requests[-1].read().decode()
+    assert CHAIN_IDS[0] in upsert
+    assert not any(member_id in upsert for member_id in CHAIN_IDS[1:])
 
 
 def test_mandatory_peer_ids_reads_both_cardinalities(clients: BothClients) -> None:

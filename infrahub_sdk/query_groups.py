@@ -100,12 +100,15 @@ class ReapResult:
         unattempted: The ids the reap never got to, because something unrelated to any
             member stopped it.
         error: The failure that stopped the reap, if one did.
+        ordering_error: The failure that prevented working out the deletion order, if one did.
+            The members were then deleted in group order, so this does not stop the reap.
 
     """
 
     refused: dict[str, str] = field(default_factory=dict)
     unattempted: list[str] = field(default_factory=list)
     error: Exception | None = None
+    ordering_error: Exception | None = None
 
     @property
     def retained_member_ids(self) -> list[str]:
@@ -113,9 +116,15 @@ class ReapResult:
         return list(self.refused) + self.unattempted
 
     def failure(self) -> Exception | None:
-        """What to raise once the group is written: the error that stopped the reap, or the refusals."""
+        """What to raise once the group is written.
+
+        The error that stopped the reap comes first, then the failure to work out the deletion
+        order, then the refusals. The refused members stay in the group whichever is raised.
+        """
         if self.error is not None:
             return self.error
+        if self.ordering_error is not None:
+            return self.ordering_error
         if self.refused:
             return TrackingGroupCleanupError(failures=self.refused)
         return None
@@ -303,7 +312,8 @@ class InfrahubGroupContext(InfrahubGroupContextBase):
 
         Members are deleted in an order where no member is deleted while another member
         still holds it through a mandatory relationship (see `DeletionOrder`). If that order
-        cannot be worked out, nothing is deleted and the failure stops the reap.
+        cannot be worked out, the members are deleted in group order instead, so the members
+        that nothing holds are still deleted, and the failure is returned in `ordering_error`.
 
         A refusal by the server is a fact about the member, so it is recorded against it
         and the remaining candidates are still attempted. Any other failure is not a fact
@@ -322,10 +332,7 @@ class InfrahubGroupContext(InfrahubGroupContextBase):
         try:
             candidates = await self._order_for_deletion(candidates)
         except Exception as exc:
-            # Deleting unordered would only trade this failure for refusals; nothing was deleted yet.
-            result.error = exc
-            result.unattempted = [member_id for _, member_id in candidates]
-            return result
+            result.ordering_error = exc
 
         for position, (kind, member_id) in enumerate(candidates):
             try:
@@ -401,10 +408,11 @@ class InfrahubGroupContext(InfrahubGroupContextBase):
             )
             await group.save(allow_upsert=True, update_group_context=False)
         except Exception as exc:
-            if reap.error is None:
+            reap_error = reap.error if reap.error is not None else reap.ordering_error
+            if reap_error is None:
                 raise
             # The write usually fails for the reason the reap stopped; report that reason.
-            raise reap.error from exc
+            raise reap_error from exc
 
         if (failure := reap.failure()) is not None:
             raise failure
@@ -461,7 +469,8 @@ class InfrahubGroupContextSync(InfrahubGroupContextBase):
 
         Members are deleted in an order where no member is deleted while another member
         still holds it through a mandatory relationship (see `DeletionOrder`). If that order
-        cannot be worked out, nothing is deleted and the failure stops the reap.
+        cannot be worked out, the members are deleted in group order instead, so the members
+        that nothing holds are still deleted, and the failure is returned in `ordering_error`.
 
         A refusal by the server is a fact about the member, so it is recorded against it
         and the remaining candidates are still attempted. Any other failure is not a fact
@@ -480,10 +489,7 @@ class InfrahubGroupContextSync(InfrahubGroupContextBase):
         try:
             candidates = self._order_for_deletion(candidates)
         except Exception as exc:
-            # Deleting unordered would only trade this failure for refusals; nothing was deleted yet.
-            result.error = exc
-            result.unattempted = [member_id for _, member_id in candidates]
-            return result
+            result.ordering_error = exc
 
         for position, (kind, member_id) in enumerate(candidates):
             try:
@@ -559,10 +565,11 @@ class InfrahubGroupContextSync(InfrahubGroupContextBase):
             )
             group.save(allow_upsert=True, update_group_context=False)
         except Exception as exc:
-            if reap.error is None:
+            reap_error = reap.error if reap.error is not None else reap.ordering_error
+            if reap_error is None:
                 raise
             # The write usually fails for the reason the reap stopped; report that reason.
-            raise reap.error from exc
+            raise reap_error from exc
 
         if (failure := reap.failure()) is not None:
             raise failure
