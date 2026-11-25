@@ -170,23 +170,10 @@ possibly-missing-attribute = "error"
 
 
 [[tool.ty.overrides]]
-include = ["infrahub_sdk/checks.py"]
+include = ["infrahub_sdk/utils.py"]
 
 [tool.ty.overrides.rules]
-invalid-await = "ignore" # 1 violation
-
-[[tool.ty.overrides]]
-include = ["infrahub_sdk/file_handler.py", "infrahub_sdk/utils.py"]
-
-[tool.ty.overrides.rules]
-unresolved-attribute = "ignore" # 5 violations total (1 in file_handler.py, 4 in utils.py)
-
-[[tool.ty.overrides]]
-include = ["infrahub_sdk/transfer/**"]
-
-[tool.ty.overrides.rules]
-invalid-argument-type = "ignore" # 2 violations in importer/json.py
-invalid-assignment = "ignore" # 1 violation in importer/json.py
+unresolved-attribute = "ignore" # 6 violations in utils.py
 
 [[tool.ty.overrides]]
 include = ["infrahub_sdk/node/node.py"]
@@ -203,12 +190,6 @@ include = ["infrahub_sdk/pytest_plugin/**"]
 unresolved-attribute = "ignore" # 35 violations - resource_config is a union of repository config element types
 
 [[tool.ty.overrides]]
-include = ["infrahub_sdk/node/attribute.py"]
-
-[tool.ty.overrides.rules]
-invalid-argument-type = "ignore" # 2 violations
-
-[[tool.ty.overrides]]
 include = ["infrahub_sdk/config.py"]
 
 [tool.ty.overrides.rules]
@@ -220,13 +201,6 @@ include = ["infrahub_sdk/utils.py"]
 
 [tool.ty.overrides.rules]
 invalid-return-type = "ignore" # 1 violation
-
-[[tool.ty.overrides]]
-# Mirrors the module-level mypy `call-overload` override for the same code.
-include = ["infrahub_sdk/ctl/check.py"]
-
-[tool.ty.overrides.rules]
-no-matching-overload = "ignore" # 1 violation - `**filters` cannot be matched against `get()` overloads
 
 
 [[tool.ty.overrides]]
@@ -359,10 +333,6 @@ pretty = true
 ignore_missing_imports = true
 disallow_untyped_defs = true
 warn_unused_ignores = true
-
-[[tool.mypy.overrides]]
-module = "infrahub_sdk.ctl.check"
-disable_error_code = ["call-overload"]
 
 [[tool.mypy.overrides]]
 module = "infrahub_sdk.utils"

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Generator
+from collections.abc import Generator, Mapping
 from contextlib import contextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -35,7 +35,7 @@ class LineDelimitedJSONExporter(ExporterInterface):
             self.console.print(f"{end}")
 
     def identify_many_to_many_relationships(
-        self, node_schema_map: dict[str, MainSchemaTypesAPI]
+        self, node_schema_map: Mapping[str, MainSchemaTypesAPI]
     ) -> dict[tuple[str, str], str]:
         # Identify many to many relationships by src/dst couples
         many_relationship_identifiers: dict[tuple[str, str], str] = {}
@@ -63,7 +63,7 @@ class LineDelimitedJSONExporter(ExporterInterface):
         return many_relationship_identifiers
 
     async def retrieve_many_to_many_relationships(
-        self, node_schema_map: dict[str, MainSchemaTypesAPI], branch: str
+        self, node_schema_map: Mapping[str, MainSchemaTypesAPI], branch: str
     ) -> list[dict[str, Any]]:
         has_remaining_items = True
         page_number = 1
