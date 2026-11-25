@@ -179,9 +179,7 @@ unresolved-attribute = "ignore" # 6 violations in utils.py
 include = ["infrahub_sdk/node/node.py"]
 
 [tool.ty.overrides.rules]
-invalid-argument-type = "ignore" # 8 violations
-unresolved-attribute = "ignore" # 22 violations - `_schema` is a union and only some members carry the attribute
-unsupported-operator = "ignore" # 1 violation
+unresolved-attribute = "ignore" # 2 violations in is_ip_prefix and is_ip_address - `_schema` is a union and only some members carry `inherit_from`
 
 [[tool.ty.overrides]]
 include = ["infrahub_sdk/pytest_plugin/**"]
