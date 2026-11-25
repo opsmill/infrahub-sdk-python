@@ -67,3 +67,54 @@ def _get_cycles(dependency_dict: dict[str, Iterable[str]], path: list[str]) -> l
             if next_cycles:
                 cycles += next_cycles
     return cycles
+
+
+def strongly_connected_components(graph: Mapping[str, set[str]], order: Sequence[str]) -> list[list[str]]:
+    """Group the keys of `graph` into components where every key can reach every other one (Tarjan).
+
+    Keys and components follow `order`, so the result does not depend on set iteration order.
+    """
+    position = {key: index for index, key in enumerate(order)}
+    index: dict[str, int] = {}
+    low: dict[str, int] = {}
+    stack: list[str] = []
+    on_stack: set[str] = set()
+    components: list[list[str]] = []
+
+    def visit(key: str) -> None:
+        index[key] = low[key] = len(index)
+        stack.append(key)
+        on_stack.add(key)
+        for peer in sorted(graph[key], key=position.__getitem__):
+            if peer not in index:
+                visit(peer)
+                low[key] = min(low[key], low[peer])
+            elif peer in on_stack:
+                low[key] = min(low[key], index[peer])
+        if low[key] == index[key]:
+            component: list[str] = []
+            while True:
+                member = stack.pop()
+                on_stack.discard(member)
+                component.append(member)
+                if member == key:
+                    break
+            components.append(sorted(component, key=position.__getitem__))
+
+    for key in order:
+        if key not in index:
+            visit(key)
+    return components
+
+
+def dependents_first(dependencies: Mapping[str, set[str]], order: Sequence[str]) -> list[str] | None:
+    """Sort the keys of `dependencies` so each key comes before the keys it depends on.
+
+    Keys with no dependency between them keep their place in `order`. Returns None on a cycle.
+    """
+    position = {key: index for index, key in enumerate(order)}
+    try:
+        levels = topological_sort(dependencies)
+    except DependencyCycleExistsError:
+        return None
+    return [key for level in reversed(levels) for key in sorted(level, key=position.__getitem__)]

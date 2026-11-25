@@ -1,6 +1,11 @@
 import pytest
 
-from infrahub_sdk.topological_sort import DependencyCycleExistsError, topological_sort
+from infrahub_sdk.topological_sort import (
+    DependencyCycleExistsError,
+    dependents_first,
+    strongly_connected_components,
+    topological_sort,
+)
 
 
 def test_topological_sort_empty() -> None:
@@ -96,3 +101,25 @@ def test_topological_sort_binary_tree() -> None:
     ordered = topological_sort(dependencies)
 
     assert ordered == [{"l", "m", "h", "i", "e", "g", "k"}, {"j", "d"}, {"b", "f"}, {"c"}, {"a"}]
+
+
+def test_strongly_connected_components_groups_keys_that_reach_each_other() -> None:
+    graph = {"a": {"b"}, "b": {"a"}, "c": {"c"}, "d": {"a"}}
+
+    components = strongly_connected_components(graph=graph, order=["a", "b", "c", "d"])
+
+    assert sorted(components) == [["a", "b"], ["c"], ["d"]]
+
+
+def test_dependents_first_puts_each_key_before_its_dependencies() -> None:
+    dependencies = {"held": set(), "holder": {"held"}, "unrelated": set()}
+
+    assert dependents_first(dependencies=dependencies, order=["held", "holder", "unrelated"]) == [
+        "holder",
+        "held",
+        "unrelated",
+    ]
+
+
+def test_dependents_first_returns_none_on_a_cycle() -> None:
+    assert dependents_first(dependencies={"a": {"b"}, "b": {"a"}}, order=["a", "b"]) is None
