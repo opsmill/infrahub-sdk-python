@@ -119,3 +119,15 @@ def test_deletion_order_keeps_group_order_when_the_peers_form_a_cycle() -> None:
     order = DeletionOrder(candidates=candidates, schemas=schemas)
 
     assert order.order(node_peers=member_peers) == candidates
+
+
+def test_deletion_order_orders_the_other_nodes_around_a_cycle() -> None:
+    """Only the nodes in the cycle keep group order; the chain beside it is still ordered by its peers."""
+    schemas = node_schemas(node_schema("Chain", relationships=[mandatory("previous", "ReproChain")]))
+    a, b, c, x, y = ("a", "b", "c", "x", "y")
+    candidates = [("ReproChain", member_id) for member_id in (a, b, c, x, y)]
+    member_peers = {b: {a}, c: {b}, x: {y}, y: {x}}
+
+    order = DeletionOrder(candidates=candidates, schemas=schemas)
+
+    assert order.order(node_peers=member_peers) == [("ReproChain", member_id) for member_id in (c, b, a, x, y)]

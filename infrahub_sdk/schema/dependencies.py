@@ -134,10 +134,19 @@ class DeletionOrder:
         node_ids = [node_id for _, node_id in nodes]
         id_set = set(node_ids)
         dependencies = {node_id: (node_peers.get(node_id, set()) & id_set) - {node_id} for node_id in node_ids}
-        # Nodes whose mandatory relationships form a cycle cannot be deleted in any order. Group
-        # order lets the server refuse them while the other nodes are still deleted.
-        ordered_ids = dependents_first(dependencies=dependencies, order=node_ids)
-        if ordered_ids is None:
-            return nodes
+        # Nodes that hold each other in a cycle cannot be deleted in any order, so the nodes of each
+        # cycle keep group order and the server refuses them. The cycles are ordered among the other
+        # nodes, so a node that is not part of a cycle is still deleted.
+        components = strongly_connected_components(graph=dependencies, order=node_ids)
+        component_key = {node_id: component[0] for component in components for node_id in component}
+        component_graph = {
+            component[0]: {component_key[peer] for node_id in component for peer in dependencies[node_id]}
+            - {component[0]}
+            for component in components
+        }
+        component_order = dependents_first(dependencies=component_graph, order=node_ids)
+        if component_order is None:
+            raise RuntimeError("The strongly connected components of the nodes to delete form a cycle")
+        members = {component[0]: component for component in components}
         kind_of = {node_id: kind for kind, node_id in nodes}
-        return [(kind_of[node_id], node_id) for node_id in ordered_ids]
+        return [(kind_of[node_id], node_id) for key in component_order for node_id in members[key]]
