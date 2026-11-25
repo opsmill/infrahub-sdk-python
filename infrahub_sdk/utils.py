@@ -373,7 +373,8 @@ def calculate_time_diff(value: str) -> str | None:
         return None
 
     delta: TimeDelta = Timestamp().get_obj().difference(time_value.get_obj())
-    (hrs, mins, secs, nanos) = delta.in_hrs_mins_secs_nanos()
+    units = delta.in_units(["hours", "minutes", "seconds", "nanoseconds"])
+    hrs, mins, secs, nanos = units["hours"], units["minutes"], units["seconds"], units["nanoseconds"]
 
     if nanos and nanos > 500_000_000:
         secs += 1
