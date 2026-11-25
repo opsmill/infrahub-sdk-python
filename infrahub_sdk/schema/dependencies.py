@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from ..topological_sort import dependents_first, strongly_connected_components
+from .main import GenericSchemaAPI
 
 if TYPE_CHECKING:
     from . import MainSchemaTypesAPI
@@ -32,19 +33,23 @@ class PeerLookup:
     relationships: dict[str, bool]
 
 
-def _mandatory_peer_kinds(schema: MainSchemaTypesAPI, schemas: Mapping[str, MainSchemaTypesAPI]) -> dict[str, set[str]]:
-    """The name of each mandatory relationship of `schema`, mapped to the kinds in `schemas` its peer can be.
+def _mandatory_peer_kinds(
+    schema: MainSchemaTypesAPI, schemas: Mapping[str, MainSchemaTypesAPI], candidate_kinds: set[str]
+) -> dict[str, set[str]]:
+    """The name of each mandatory relationship of `schema`, mapped to the kinds in `candidate_kinds` its peer can be.
 
-    A peer that is a generic matches every kind in `schemas` that inherits from it.
+    A peer that is a generic in `schemas` matches the kinds listed in its `used_by`. This includes
+    `CoreNode`, which every node implements without naming it in `inherit_from`. A generic missing
+    from `schemas` matches the kinds whose `inherit_from` names it.
     """
     peer_kinds: dict[str, set[str]] = {}
     for name in schema.mandatory_relationship_names:
         peer = schema.get_relationship(name).peer
-        kinds = {
-            kind
-            for kind, peer_schema in schemas.items()
-            if peer == kind or peer in getattr(peer_schema, "inherit_from", [])
-        }
+        kinds = {peer} & candidate_kinds
+        peer_schema = schemas.get(peer)
+        if isinstance(peer_schema, GenericSchemaAPI):
+            kinds |= set(peer_schema.used_by) & candidate_kinds
+        kinds |= {kind for kind in candidate_kinds if peer in getattr(schemas[kind], "inherit_from", [])}
         if kinds:
             peer_kinds[name] = kinds
     return peer_kinds
@@ -58,6 +63,9 @@ class DeletionOrder:
     the same kind, or of kinds that hold each other, can only be ordered from their actual peers, which
     `peer_lookups` names and `order` takes.
 
+    `schemas` holds every schema of the branch, generics included, because a peer that is a generic
+    is resolved through the generic's `used_by`.
+
     A kind missing from the schema cannot be ordered, so its nodes go last.
     """
 
@@ -67,15 +75,13 @@ class DeletionOrder:
         self.kinds = [kind for kind in kinds if kind in schemas]
         self.unknown_kinds = {kind for kind in kinds if kind not in schemas}
 
-        candidate_schemas = {kind: schemas[kind] for kind in self.kinds}
+        candidate_kinds = set(self.kinds)
         self.relationships = {
-            kind: _mandatory_peer_kinds(candidate_schemas[kind], candidate_schemas) for kind in self.kinds
+            kind: _mandatory_peer_kinds(schema=schemas[kind], schemas=schemas, candidate_kinds=candidate_kinds)
+            for kind in self.kinds
         }
         self.cardinality_many = {
-            kind: {
-                name: candidate_schemas[kind].get_relationship(name).cardinality_is_many
-                for name in self.relationships[kind]
-            }
+            kind: {name: schemas[kind].get_relationship(name).cardinality_is_many for name in self.relationships[kind]}
             for kind in self.kinds
         }
         self.graph: dict[str, set[str]] = {kind: set().union(*self.relationships[kind].values()) for kind in self.kinds}

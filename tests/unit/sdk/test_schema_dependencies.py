@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from infrahub_sdk.schema.dependencies import DeletionOrder, PeerLookup
-from tests.helpers.schemas import mandatory, node_schema, node_schemas
+from tests.helpers.schemas import generic_schema, mandatory, node_schema, node_schemas
 
 TARGET_ID = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
 DEPENDENT_ID = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
@@ -31,6 +31,22 @@ def test_deletion_order_resolves_a_generic_peer_to_the_kinds_inheriting_it() -> 
     order = DeletionOrder(candidates=[("ReproAddress", TARGET_ID), ("ReproSession", DEPENDENT_ID)], schemas=schemas)
 
     assert order.order() == [("ReproSession", DEPENDENT_ID), ("ReproAddress", TARGET_ID)]
+
+
+def test_deletion_order_resolves_a_generic_peer_through_its_used_by() -> None:
+    """Every node implements CoreNode without naming it in inherit_from, as CoreGeneratorInstance.object shows."""
+    schemas = {
+        **node_schemas(node_schema("Thing"), node_schema("Note", relationships=[mandatory("object", "CoreNode")])),
+        "CoreNode": generic_schema("Node", namespace="Core", used_by=["ReproThing", "ReproNote"]),
+    }
+    order = DeletionOrder(candidates=[("ReproThing", TARGET_ID), ("ReproNote", DEPENDENT_ID)], schemas=schemas)
+
+    # ReproNote implements CoreNode too, so it can hold another ReproNote and its peers must be read.
+    assert order.peer_lookups == [PeerLookup(kind="ReproNote", ids=[DEPENDENT_ID], relationships={"object": False})]
+    assert order.order(node_peers={DEPENDENT_ID: {TARGET_ID}}) == [
+        ("ReproNote", DEPENDENT_ID),
+        ("ReproThing", TARGET_ID),
+    ]
 
 
 def test_deletion_order_follows_a_chain_of_kinds() -> None:
