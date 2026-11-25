@@ -764,3 +764,92 @@ def test_mandatory_peer_ids_reads_both_cardinalities(clients: BothClients) -> No
     )
 
     assert peer_ids == set(CHAIN_IDS)
+
+
+LEFT_IDS = ["l1l1l1l1-l1l1-l1l1-l1l1-l1l1l1l1l1l1", "l2l2l2l2-l2l2-l2l2-l2l2-l2l2l2l2l2l2"]
+RIGHT_ID = "r1r1r1r1-r1r1-r1r1-r1r1-r1r1r1r1r1r1"
+OUTSIDE_RIGHT_ID = "r9r9r9r9-r9r9-r9r9-r9r9-r9r9r9r9r9r9"
+
+
+def _peer_query_response(kind: str, relationship: str, peers: dict[str, tuple[str, list[str]]]) -> dict[str, Any]:
+    """The answer to a peer query on `kind` that reads one cardinality-many relationship, in the shape it asks for.
+
+    `peers` maps each node id to the kind and the ids of the peers it holds through `relationship`.
+    """
+    return {
+        "data": {
+            kind: {
+                "count": len(peers),
+                "edges": [
+                    {
+                        "node": {
+                            "id": node_id,
+                            "display_label": node_id,
+                            "__typename": kind,
+                            relationship: {
+                                "edges": [
+                                    {
+                                        "node": {
+                                            "id": peer_id,
+                                            "hfid": None,
+                                            "display_label": peer_id,
+                                            "__typename": peer_kind,
+                                        }
+                                    }
+                                    for peer_id in peer_ids
+                                ],
+                            },
+                        }
+                    }
+                    for node_id, (peer_kind, peer_ids) in peers.items()
+                ],
+            }
+        }
+    }
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_reap_reads_cardinality_many_peers_to_order_kinds_that_hold_each_other(
+    clients: BothClients, client_type: str, schema_query_05_data: dict, httpx_mock: HTTPXMock
+) -> None:
+    """Each kind's peers are read through a cardinality-many relationship, then the holders are deleted first.
+
+    The first left holds the right, which holds the second left, so group order would be refused twice.
+    """
+    schema = _schema_with(
+        schema_query_05_data,
+        node_schema("Left", relationships=[mandatory("rights", "ReproRight", cardinality="many")]),
+        node_schema("Right", relationships=[mandatory("lefts", "ReproLeft", cardinality="many")]),
+    )
+    members = [("ReproLeft", LEFT_IDS[1]), ("ReproRight", RIGHT_ID), ("ReproLeft", LEFT_IDS[0])]
+    httpx_mock.add_response(method="POST", url="http://mock/graphql/main", json=_group_with_members(members))
+    httpx_mock.add_response(
+        method="POST",
+        url="http://mock/graphql/main",
+        json=_peer_query_response(
+            kind="ReproLeft",
+            relationship="rights",
+            peers={LEFT_IDS[1]: ("ReproRight", [OUTSIDE_RIGHT_ID]), LEFT_IDS[0]: ("ReproRight", [RIGHT_ID])},
+        ),
+    )
+    httpx_mock.add_response(
+        method="POST",
+        url="http://mock/graphql/main",
+        json=_peer_query_response(
+            kind="ReproRight", relationship="lefts", peers={RIGHT_ID: ("ReproLeft", [LEFT_IDS[1]])}
+        ),
+    )
+    httpx_mock.add_response(method="POST", url="http://mock/graphql/main", json=_delete_response("ReproLeft"))
+    httpx_mock.add_response(method="POST", url="http://mock/graphql/main", json=_delete_response("ReproRight"))
+    httpx_mock.add_response(method="POST", url="http://mock/graphql/main", json=_delete_response("ReproLeft"))
+    httpx_mock.add_response(method="POST", url="http://mock/graphql/main", json=UPSERT_RESPONSE)
+
+    # An ordering failure would be raised here, after the group write.
+    await _track_nothing(clients=clients, client_type=client_type, schema=schema)
+
+    requests = httpx_mock.get_requests()
+    assert len(requests) == 7
+    assert "rights {" in requests[1].read().decode()
+    assert "lefts {" in requests[2].read().decode()
+    assert _deleted_ids(requests, [*LEFT_IDS, RIGHT_ID]) == [LEFT_IDS[0], RIGHT_ID, LEFT_IDS[1]]
+    assert "Upsert" in requests[-1].read().decode()
