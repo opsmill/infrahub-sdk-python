@@ -1,0 +1,74 @@
+# `infrahubctl storage`
+
+Manage the files that an Infrahub server stores.
+
+**Usage**:
+
+```console
+$ infrahubctl storage [OPTIONS] COMMAND [ARGS]...
+```
+
+**Options**:
+
+* `--install-completion`: Install completion for the current shell.
+* `--show-completion`: Show completion for the current shell, to copy it or customize the installation.
+* `--help`: Show this message and exit.
+
+**Commands**:
+
+* `encrypt`: Encrypt the stored files that were written...
+
+## `infrahubctl storage encrypt`
+
+Encrypt the stored files that were written before storage encryption was enabled.
+
+The command lists the stored objects page by page and asks the server, which holds the storage key, to encrypt them.
+
+It keeps several batches in flight, lowers that number when the server slows down, and waits when it answers HTTP 429.
+
+The token needs the super admin permission, and storage encryption must be enabled on the server.
+
+The command does its own retries, not those of the SDK client: network errors and HTTP 502, 503 and 504, up to --max-retries.
+
+Before it encrypts, the command lists the objects still to process, to show the total, the percent done and the remaining time.
+Use --no-count to skip this pass on a very large installation; the progress then shows no total.
+
+The state file records the position after every page. After an error, Ctrl-C or SIGTERM, run the same command again to resume.
+
+Objects that the server leaves unchanged are listed in the report file, which every run appends to.
+A run that resumes does not retry them, nor the objects that failed, because the saved position is past them.
+A new full pass, which starts after a pass has finished, or --restart, tries them again.
+
+Exit codes:
+  0    Every object is encrypted, was already encrypted, or was skipped by the server
+  1    The server could not encrypt at least one object, or the command failed before the run
+       (for example on a login error or an unexpected error)
+  2    The run stopped on an error from the server or on a state file or report that cannot be used
+  130  The run stopped on Ctrl-C (SIGINT)
+  143  The run stopped on SIGTERM
+
+**Usage**:
+
+```console
+$ infrahubctl storage encrypt [OPTIONS]
+```
+
+**Options**:
+
+* `--concurrency INTEGER RANGE`: Most batches in flight at once (at most 64); the command starts lower and adapts  [default: 8; 1&lt;=x&lt;=64]
+* `--batch-size INTEGER RANGE`: Stored objects in each request to encrypt  [default: 50; 1&lt;=x&lt;=500]
+* `--page-size INTEGER RANGE`: Stored objects in each listing request  [default: 5000; 1&lt;=x&lt;=5000]
+* `--rate FLOAT RANGE`: Most requests per second (default: no maximum)  [x&gt;=0.001]
+* `--priority TEXT`: Priority of the requests: high, medium or low  [default: low]
+* `--before [%Y-%m-%d|%Y-%m-%dT%H:%M:%S|%Y-%m-%dT%H:%M:%S%z]`: Leave the objects modified after this time (ISO 8601; no offset means UTC)
+* `--dry-run`: Only list: count the objects and their size
+* `--limit INTEGER RANGE`: Stop after this number of objects  [x&gt;=1]
+* `--allow-unverified`: Also encrypt the objects that no node records a checksum for
+* `--state-file PATH`: Keeps the position in the listing, so a rerun resumes  [default: infrahub-storage-encrypt.state.json]
+* `--report PATH`: Receives one JSON line for each object that was not encrypted  [default: infrahub-storage-encrypt.report.jsonl]
+* `--max-retries INTEGER RANGE`: Retries of one request after a network error or HTTP 502, 503, 504  [default: 10; x&gt;=0]
+* `--timeout INTEGER RANGE`: Seconds before one request times out  [default: 300; x&gt;=1]
+* `--restart`: Ignore the state file and list from the first object
+* `--no-count`: Do not list the objects first to count them; the progress shows no total, percent or remaining time
+* `--config-file TEXT`: [env var: INFRAHUBCTL_CONFIG; default: infrahubctl.toml]
+* `--help`: Show this message and exit.
