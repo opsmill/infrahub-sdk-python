@@ -13,7 +13,14 @@ from infrahub_sdk import Config, InfrahubClient, InfrahubClientSync
 from infrahub_sdk.ctl.schema import display_schema_load_errors, valid_error_path
 from infrahub_sdk.exceptions import SchemaNotFoundError, ValidationError
 from infrahub_sdk.protocols import BuiltinIPAddress, BuiltinIPAddressSync, BuiltinTag, BuiltinTagSync
-from infrahub_sdk.schema import BranchSchema, InfrahubSchema, InfrahubSchemaBase, InfrahubSchemaSync, NodeSchemaAPI
+from infrahub_sdk.schema import (
+    BranchSchema,
+    InfrahubSchema,
+    InfrahubSchemaBase,
+    InfrahubSchemaSync,
+    NodeSchemaAPI,
+    validate_schema,
+)
 from infrahub_sdk.schema.repository import (
     InfrahubCheckDefinitionConfig,
     InfrahubJinja2TransformConfig,
@@ -567,3 +574,17 @@ async def test_schema_load_surfaces_api_error_on_422(client: InfrahubClient, htt
     assert response.errors
     assert response.errors["errors"][0]["message"] == api_error_message
     assert not response.schema_updated
+
+
+def test_validate_schema_accepts_infrahub_version() -> None:
+    schema = {
+        "version": "1.0",
+        "infrahub_version": "1.0.0",
+        "nodes": [{"name": "Device", "namespace": "Infra", "attributes": [{"name": "hostname", "kind": "Text"}]}],
+    }
+
+    result = validate_schema(schema=schema)
+
+    assert result.valid is True
+    assert result.errors == []
+    assert result.warnings == []
