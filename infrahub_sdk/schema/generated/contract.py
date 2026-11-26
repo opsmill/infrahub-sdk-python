@@ -35,8 +35,8 @@ READ_ONLY_FIELDS: dict[str, frozenset[str]] = {
     "TextAttributeWrite": frozenset({"inherited"}),
 }
 
-# Optional fields a schema export keeps when set, keyed the same way: schema processing does
-# not derive them, so a schema file without them fails to load.
+# Optional fields a schema export keeps unless they hold their default, keyed the same way: a
+# shortened export without them fails validation, so the export writes every value.
 KEEP_IN_EXPORT_FIELDS: dict[str, frozenset[str]] = {
     "AttributeSchemaBaseWrite": frozenset({"choices", "read_only", "unique"}),
     "GenericAttributeWrite": frozenset({"choices", "read_only", "unique"}),
