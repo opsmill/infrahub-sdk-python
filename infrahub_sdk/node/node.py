@@ -18,6 +18,7 @@ from ..file_handler import FileHandler, FileHandlerBase, FileHandlerSync, Prepar
 from ..graphql import Mutation, Query
 from ..schema import (
     GenericSchemaAPI,
+    NodeSchemaAPI,
     RelationshipCardinality,
     RelationshipKind,
     RelationshipSchemaAPI,
@@ -459,7 +460,7 @@ class InfrahubNodeBase:
             bool: ``True`` when the node inherits from ``CoreResourcePool``.
 
         """
-        return hasattr(self._schema, "inherit_from") and "CoreResourcePool" in self._schema.inherit_from
+        return "CoreResourcePool" in getattr(self._schema, "inherit_from", [])
 
     def _pool_allocated_query(self, edge_fields: Sequence[str]) -> str:
         return Query(
@@ -1293,8 +1294,8 @@ class InfrahubNode(InfrahubNodeBase):
             if dest is None:
                 raise ValueError("skip_if_unchanged requires dest to be provided")
             if dest.exists() and dest.is_file():
-                server_checksum = self.checksum
-                if server_checksum.value is not None and sha1_of_source(dest) == server_checksum.value:  # type: ignore[union-attr]
+                server_checksum = self._get_attribute("checksum")
+                if server_checksum.value is not None and sha1_of_source(dest) == server_checksum.value:
                     return 0
 
         return await self._file_handler.download(node_id=self.id, branch=self._branch, dest=dest)
@@ -1330,14 +1331,14 @@ class InfrahubNode(InfrahubNodeBase):
         """
         self._validate_file_object_support(message=MATCHES_LOCAL_CHECKSUM_FEATURE_NOT_SUPPORTED_MESSAGE)
 
-        server_checksum = self.checksum
-        if server_checksum.value is None:  # type: ignore[union-attr]
+        server_checksum = self._get_attribute("checksum")
+        if server_checksum.value is None:
             raise ValueError(
                 f"{self._schema.kind} node has no server-side checksum; "
                 "ensure the node has been saved with file content attached before comparing."
             )
 
-        return sha1_of_source(source) == server_checksum.value  # type: ignore[union-attr]
+        return sha1_of_source(source) == server_checksum.value
 
     async def upload_if_changed(
         self,
@@ -1386,14 +1387,14 @@ class InfrahubNode(InfrahubNodeBase):
             raise ValueError("name is required when source is bytes or BinaryIO")
 
         # Short-circuit only if we have a server checksum to compare against.
-        server_checksum = self.checksum
-        have_server_state = bool(self.id) and server_checksum.value is not None  # type: ignore[union-attr]
+        server_checksum = self._get_attribute("checksum")
+        have_server_state = bool(self.id) and server_checksum.value is not None
 
         # Compute digest before staging — source may only be readable once.
         local_digest = sha1_of_source(source)
 
-        if have_server_state and local_digest == server_checksum.value:  # type: ignore[union-attr]
-            return UploadResult(was_uploaded=False, checksum=server_checksum.value)  # type: ignore[union-attr]
+        if have_server_state and local_digest == server_checksum.value:
+            return UploadResult(was_uploaded=False, checksum=server_checksum.value)
 
         # Either no server state, or checksum mismatched — stage + save.
         if isinstance(source, Path):
@@ -1503,7 +1504,8 @@ class InfrahubNode(InfrahubNodeBase):
         property: bool = False,
     ) -> None:
         """Process hierarchical fields (parent, children, ancestors, descendants) for hierarchical nodes."""
-        if not self._hierarchy_support:
+        hierarchy_kind = self._schema.hierarchy if isinstance(self._schema, NodeSchemaAPI) else None
+        if not self._hierarchy_support or hierarchy_kind is None:
             return
 
         for hierarchical_name in ["parent", "children", "ancestors", "descendants"]:
@@ -1515,7 +1517,7 @@ class InfrahubNode(InfrahubNodeBase):
             if not should_fetch:
                 continue
 
-            peer_schema = await self._client.schema.get(kind=self._schema.hierarchy, branch=self._branch)  # type: ignore[union-attr, arg-type]
+            peer_schema = await self._client.schema.get(kind=hierarchy_kind, branch=self._branch)
             peer_node = InfrahubNode(client=self._client, schema=peer_schema, branch=self._branch)
             # Exclude hierarchical fields from peer data to prevent infinite recursion
             peer_exclude = list(exclude) if exclude else []
@@ -1527,7 +1529,7 @@ class InfrahubNode(InfrahubNodeBase):
 
             data[hierarchical_name] = self._build_hierarchy_query_data(
                 name=hierarchical_name,
-                peer_kind=self._schema.hierarchy,  # type: ignore[union-attr, arg-type]
+                peer_kind=hierarchy_kind,
                 peer_data=peer_data,
                 property=property,
             )
@@ -2645,8 +2647,8 @@ class InfrahubNodeSync(InfrahubNodeBase):
             if dest is None:
                 raise ValueError("skip_if_unchanged requires dest to be provided")
             if dest.exists() and dest.is_file():
-                server_checksum = self.checksum
-                if server_checksum.value is not None and sha1_of_source(dest) == server_checksum.value:  # type: ignore[union-attr]
+                server_checksum = self._get_attribute("checksum")
+                if server_checksum.value is not None and sha1_of_source(dest) == server_checksum.value:
                     return 0
 
         return self._file_handler.download(node_id=self.id, branch=self._branch, dest=dest)
@@ -2682,14 +2684,14 @@ class InfrahubNodeSync(InfrahubNodeBase):
         """
         self._validate_file_object_support(message=MATCHES_LOCAL_CHECKSUM_FEATURE_NOT_SUPPORTED_MESSAGE)
 
-        server_checksum = self.checksum
-        if server_checksum.value is None:  # type: ignore[union-attr]
+        server_checksum = self._get_attribute("checksum")
+        if server_checksum.value is None:
             raise ValueError(
                 f"{self._schema.kind} node has no server-side checksum; "
                 "ensure the node has been saved with file content attached before comparing."
             )
 
-        return sha1_of_source(source) == server_checksum.value  # type: ignore[union-attr]
+        return sha1_of_source(source) == server_checksum.value
 
     def upload_if_changed(
         self,
@@ -2738,14 +2740,14 @@ class InfrahubNodeSync(InfrahubNodeBase):
             raise ValueError("name is required when source is bytes or BinaryIO")
 
         # Short-circuit only if we have a server checksum to compare against.
-        server_checksum = self.checksum
-        have_server_state = bool(self.id) and server_checksum.value is not None  # type: ignore[union-attr]
+        server_checksum = self._get_attribute("checksum")
+        have_server_state = bool(self.id) and server_checksum.value is not None
 
         # Compute digest before staging — source may only be readable once.
         local_digest = sha1_of_source(source)
 
-        if have_server_state and local_digest == server_checksum.value:  # type: ignore[union-attr]
-            return UploadResult(was_uploaded=False, checksum=server_checksum.value)  # type: ignore[union-attr]
+        if have_server_state and local_digest == server_checksum.value:
+            return UploadResult(was_uploaded=False, checksum=server_checksum.value)
 
         # Either no server state, or checksum mismatched — stage + save.
         if isinstance(source, Path):
@@ -2849,7 +2851,8 @@ class InfrahubNodeSync(InfrahubNodeBase):
         property: bool = False,
     ) -> None:
         """Process hierarchical fields (parent, children, ancestors, descendants) for hierarchical nodes."""
-        if not self._hierarchy_support:
+        hierarchy_kind = self._schema.hierarchy if isinstance(self._schema, NodeSchemaAPI) else None
+        if not self._hierarchy_support or hierarchy_kind is None:
             return
 
         for hierarchical_name in ["parent", "children", "ancestors", "descendants"]:
@@ -2861,7 +2864,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
             if not should_fetch:
                 continue
 
-            peer_schema = self._client.schema.get(kind=self._schema.hierarchy, branch=self._branch)  # type: ignore[union-attr, arg-type]
+            peer_schema = self._client.schema.get(kind=hierarchy_kind, branch=self._branch)
             peer_node = InfrahubNodeSync(client=self._client, schema=peer_schema, branch=self._branch)
             # Exclude hierarchical fields from peer data to prevent infinite recursion
             peer_exclude = list(exclude) if exclude else []
@@ -2873,7 +2876,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
 
             data[hierarchical_name] = self._build_hierarchy_query_data(
                 name=hierarchical_name,
-                peer_kind=self._schema.hierarchy,  # type: ignore[union-attr, arg-type]
+                peer_kind=hierarchy_kind,
                 peer_data=peer_data,
                 property=property,
             )
