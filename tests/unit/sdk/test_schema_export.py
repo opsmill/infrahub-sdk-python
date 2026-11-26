@@ -1,19 +1,18 @@
 from __future__ import annotations
 
-import warnings
+import re
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 import pytest
 
+from infrahub_sdk.exceptions import ApiError, VersionNotSupportedError
 from infrahub_sdk.schema import (
-    GenericSchemaAPI,
-    InfrahubSchemaBase,
-    NodeSchemaAPI,
-    ProfileSchemaAPI,
-    SchemaExport,
-    TemplateSchemaAPI,
+    SCHEMA_EXPORT_MIN_INFRAHUB_VERSION,
+    SchemaExportDocument,
+    SchemaExportMode,
+    split_by_namespace,
 )
-from infrahub_sdk.schema.export import schema_to_export_dict
 
 if TYPE_CHECKING:
     from pytest_httpx import HTTPXMock
@@ -22,268 +21,156 @@ if TYPE_CHECKING:
 
 client_types = ["standard", "sync"]
 
-# ---------------------------------------------------------------------------
-# Minimal schema API response builders (reused from ctl tests)
-# ---------------------------------------------------------------------------
-
-_BASE_NODE: dict[str, Any] = {
-    "id": None,
-    "state": "present",
-    "hash": None,
-    "hierarchy": None,
-    "label": None,
-    "description": None,
-    "include_in_menu": None,
-    "menu_placement": None,
-    "display_label": None,
-    "display_labels": None,
-    "human_friendly_id": None,
-    "icon": None,
-    "uniqueness_constraints": None,
-    "documentation": None,
-    "order_by": None,
-    "inherit_from": [],
-    "branch": "aware",
-    "default_filter": None,
-    "generate_profile": True,
-    "generate_template": False,
-    "parent": None,
-    "children": None,
-    "attributes": [],
-    "relationships": [],
-}
-
-_BASE_GENERIC: dict[str, Any] = {
-    "id": None,
-    "state": "present",
-    "hash": None,
-    "used_by": [],
-    "label": None,
-    "description": None,
-    "include_in_menu": None,
-    "menu_placement": None,
-    "display_label": None,
-    "display_labels": None,
-    "human_friendly_id": None,
-    "icon": None,
-    "uniqueness_constraints": None,
-    "documentation": None,
-    "order_by": None,
-    "attributes": [],
-    "relationships": [],
-}
-
-
-def _make_node_schema(namespace: str, name: str) -> NodeSchemaAPI:
-    return NodeSchemaAPI(**{**_BASE_NODE, "namespace": namespace, "name": name})
-
-
-def _make_generic_schema(namespace: str, name: str) -> GenericSchemaAPI:
-    return GenericSchemaAPI(**{**_BASE_GENERIC, "namespace": namespace, "name": name})
-
-
-def _make_profile_schema(namespace: str, name: str) -> ProfileSchemaAPI:
-    return ProfileSchemaAPI(
-        **{
-            **_BASE_NODE,
-            "namespace": namespace,
-            "name": name,
-        }
-    )
-
-
-def _make_template_schema(namespace: str, name: str) -> TemplateSchemaAPI:
-    return TemplateSchemaAPI(
-        **{
-            **_BASE_NODE,
-            "namespace": namespace,
-            "name": name,
-        }
-    )
-
-
-# ---------------------------------------------------------------------------
-# _build_export_schemas tests
-# ---------------------------------------------------------------------------
-
-
-class TestBuildExportSchemas:
-    def test_separates_nodes_and_generics(self) -> None:
-        schema_nodes = {
-            "InfraDevice": _make_node_schema("Infra", "Device"),
-            "InfraInterface": _make_generic_schema("Infra", "Interface"),
-        }
-        result = InfrahubSchemaBase._build_export_schemas(schema_nodes)
-        assert isinstance(result, SchemaExport)
-        assert "Infra" in result.namespaces
-        assert len(result.namespaces["Infra"].nodes) == 1
-        assert len(result.namespaces["Infra"].generics) == 1
-        assert result.namespaces["Infra"].nodes[0]["name"] == "Device"
-        assert result.namespaces["Infra"].generics[0]["name"] == "Interface"
-
-    def test_groups_by_namespace(self) -> None:
-        schema_nodes = {
-            "InfraDevice": _make_node_schema("Infra", "Device"),
-            "DcimRack": _make_node_schema("Dcim", "Rack"),
-        }
-        result = InfrahubSchemaBase._build_export_schemas(schema_nodes)
-        assert set(result.namespaces.keys()) == {"Infra", "Dcim"}
-
-    def test_filters_profiles_and_templates(self) -> None:
-        schema_nodes = {
-            "InfraDevice": _make_node_schema("Infra", "Device"),
-            "ProfileInfraDevice": _make_profile_schema("Profile", "InfraDevice"),
-            "TemplateInfraDevice": _make_template_schema("Template", "InfraDevice"),
-        }
-        result = InfrahubSchemaBase._build_export_schemas(schema_nodes)
-        assert "Infra" in result.namespaces
-        assert "Profile" not in result.namespaces
-        assert "Template" not in result.namespaces
-
-    def test_filters_restricted_namespaces(self) -> None:
-        schema_nodes = {
-            "CoreRepository": _make_node_schema("Core", "Repository"),
-            "BuiltinTag": _make_node_schema("Builtin", "Tag"),
-            "InfraDevice": _make_node_schema("Infra", "Device"),
-        }
-        result = InfrahubSchemaBase._build_export_schemas(schema_nodes)
-        assert "Core" not in result.namespaces
-        assert "Builtin" not in result.namespaces
-        assert "Infra" in result.namespaces
-
-    def test_namespace_filter(self) -> None:
-        schema_nodes = {
-            "InfraDevice": _make_node_schema("Infra", "Device"),
-            "DcimRack": _make_node_schema("Dcim", "Rack"),
-        }
-        result = InfrahubSchemaBase._build_export_schemas(schema_nodes, namespaces=["Infra"])
-        assert "Infra" in result.namespaces
-        assert "Dcim" not in result.namespaces
-
-    def test_empty_when_no_user_schemas(self) -> None:
-        schema_nodes = {
-            "CoreRepository": _make_node_schema("Core", "Repository"),
-        }
-        result = InfrahubSchemaBase._build_export_schemas(schema_nodes)
-        assert result.namespaces == {}
-
-    def test_warns_on_restricted_namespaces(self) -> None:
-        schema_nodes = {
-            "InfraDevice": _make_node_schema("Infra", "Device"),
-        }
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always")
-            result = InfrahubSchemaBase._build_export_schemas(schema_nodes, namespaces=["Infra", "Core"])
-        assert len(w) == 1
-        assert "Core" in str(w[0].message)
-        assert "Infra" in result.namespaces
-
-    def test_to_dict(self) -> None:
-        schema_nodes = {
-            "InfraDevice": _make_node_schema("Infra", "Device"),
-            "InfraInterface": _make_generic_schema("Infra", "Interface"),
-        }
-        result = InfrahubSchemaBase._build_export_schemas(schema_nodes)
-        as_dict = result.to_dict()
-        assert isinstance(as_dict, dict)
-        assert "Infra" in as_dict
-        assert isinstance(as_dict["Infra"], dict)
-        assert len(as_dict["Infra"]["nodes"]) == 1
-        assert len(as_dict["Infra"]["generics"]) == 1
-
-
-def test_export_preserves_non_default_ordered_flag() -> None:
-    """`ordered: false` survives the fetch -> export round-trip; the default `true` is omitted."""
-    node = NodeSchemaAPI(
-        **{
-            **_BASE_NODE,
-            "namespace": "Infra",
-            "name": "Device",
-            "attributes": [
-                {"name": "tags_unordered", "kind": "List", "ordered": False},
-                {"name": "tags_ordered", "kind": "List"},
+EXPORT_RESPONSE: dict[str, Any] = {
+    "version": "1.0",
+    "infrahub_version": "1.13.0",
+    "generics": [
+        {
+            "name": "Interface",
+            "namespace": "Network",
+            "human_friendly_id": ["device__name__value", "name__value"],
+            "attributes": [{"name": "name", "kind": "Text"}],
+            "relationships": [
+                {
+                    "name": "device",
+                    "peer": "NetworkDevice",
+                    "cardinality": "one",
+                    "optional": False,
+                    "kind": "Attribute",
+                }
             ],
-        }
+        },
+    ],
+    "nodes": [
+        {
+            "name": "Device",
+            "namespace": "Network",
+            "attributes": [{"name": "name", "kind": "Text", "unique": True}],
+        },
+        {"name": "Site", "namespace": "Location", "attributes": [{"name": "name", "kind": "Text"}]},
+        {
+            "name": "PhysicalInterface",
+            "namespace": "Network",
+            "inherit_from": ["NetworkInterface"],
+            "attributes": [{"name": "speed", "kind": "Number"}],
+        },
+    ],
+}
+
+OLDER_SERVER_RESPONSE: dict[str, Any] = {
+    "data": None,
+    "errors": [{"message": "Unable to find the schema export in the database.", "extensions": {"code": 422}}],
+}
+
+
+async def _export(
+    clients: BothClients,
+    client_type: str,
+    branch: str,
+    namespaces: list[str] | None = None,
+    mode: SchemaExportMode = SchemaExportMode.BRIEF,
+) -> SchemaExportDocument:
+    if client_type == "standard":
+        return await clients.standard.schema.export(branch=branch, namespaces=namespaces, mode=mode)
+    return clients.sync.schema.export(branch=branch, namespaces=namespaces, mode=mode)
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_export_returns_the_endpoint_document(
+    httpx_mock: HTTPXMock, clients: BothClients, client_type: str
+) -> None:
+    httpx_mock.add_response(
+        method="GET", url="http://mock/api/schema/export?branch=main&mode=BRIEF", json=EXPORT_RESPONSE
     )
-    exported = schema_to_export_dict(node)
-    attrs = {attr["name"]: attr for attr in exported["attributes"]}
-    assert attrs["tags_unordered"]["ordered"] is False
-    assert "ordered" not in attrs["tags_ordered"]
+
+    document = await _export(clients, client_type, branch="main")
+
+    assert isinstance(document, SchemaExportDocument)
+    assert document.model_dump(mode="json", exclude_unset=True) == EXPORT_RESPONSE
 
 
-# ---------------------------------------------------------------------------
-# Integration tests for export() method on client.schema
-# ---------------------------------------------------------------------------
+@pytest.mark.parametrize("client_type", client_types)
+async def test_export_sends_branch_namespaces_and_mode(
+    httpx_mock: HTTPXMock, clients: BothClients, client_type: str
+) -> None:
+    httpx_mock.add_response(
+        method="GET",
+        url="http://mock/api/schema/export?branch=feature&namespaces=Network&namespaces=Location&mode=FULL",
+        json=EXPORT_RESPONSE,
+    )
+
+    document = await _export(
+        clients, client_type, branch="feature", namespaces=["Network", "Location"], mode=SchemaExportMode.FULL
+    )
+
+    assert document.infrahub_version == "1.13.0"
 
 
-def _schema_response(
-    nodes: list[dict] | None = None,
-    generics: list[dict] | None = None,
-    profiles: list[dict] | None = None,
-    templates: list[dict] | None = None,
-) -> dict:
-    return {
-        "main": "aabbccdd",
-        "nodes": nodes or [],
-        "generics": generics or [],
-        "profiles": profiles or [],
-        "templates": templates or [],
+def test_split_by_namespace_keeps_versions_and_input_order() -> None:
+    document = SchemaExportDocument.model_validate(EXPORT_RESPONSE)
+
+    documents = split_by_namespace(document)
+
+    assert list(documents) == ["Network", "Location"]
+    for namespace_document in documents.values():
+        assert isinstance(namespace_document, SchemaExportDocument)
+        assert namespace_document.version == "1.0"
+        assert namespace_document.infrahub_version == "1.13.0"
+    assert [generic.name for generic in documents["Network"].generics] == ["Interface"]
+    assert [node.name for node in documents["Network"].nodes] == ["Device", "PhysicalInterface"]
+    assert [node.name for node in documents["Location"].nodes] == ["Site"]
+    assert documents["Location"].model_dump(mode="json", exclude_unset=True) == {
+        "version": "1.0",
+        "infrahub_version": "1.13.0",
+        "nodes": [EXPORT_RESPONSE["nodes"][1]],
     }
 
 
-def _make_node_dict(namespace: str, name: str) -> dict[str, Any]:
-    return {**_BASE_NODE, "namespace": namespace, "name": name}
-
-
-def _make_generic_dict(namespace: str, name: str) -> dict[str, Any]:
-    return {**_BASE_GENERIC, "namespace": namespace, "name": name}
-
-
 @pytest.mark.parametrize("client_type", client_types)
-async def test_export_returns_user_schemas(httpx_mock: HTTPXMock, clients: BothClients, client_type: str) -> None:
-    response = _schema_response(
-        nodes=[_make_node_dict("Infra", "Device"), _make_node_dict("Dcim", "Rack")],
-        generics=[_make_generic_dict("Infra", "GenericInterface")],
+async def test_export_names_the_release_on_an_older_server(
+    httpx_mock: HTTPXMock, clients: BothClients, client_type: str
+) -> None:
+    httpx_mock.add_response(
+        method="GET",
+        url="http://mock/api/schema/export?branch=main&mode=BRIEF",
+        status_code=422,
+        json=OLDER_SERVER_RESPONSE,
     )
-    httpx_mock.add_response(method="GET", url="http://mock/api/schema?branch=main", json=response)
 
-    if client_type == "standard":
-        result = await clients.standard.schema.export(branch="main")
-    else:
-        result = clients.sync.schema.export(branch="main")
+    with pytest.raises(VersionNotSupportedError, match=re.escape(f"Infrahub {SCHEMA_EXPORT_MIN_INFRAHUB_VERSION}")):
+        await _export(clients, client_type, branch="main")
 
-    assert isinstance(result, SchemaExport)
-    assert "Infra" in result.namespaces
-    assert "Dcim" in result.namespaces
-    assert len(result.namespaces["Infra"].nodes) == 1
-    assert len(result.namespaces["Infra"].generics) == 1
-    assert len(result.namespaces["Dcim"].nodes) == 1
+
+@dataclass
+class ErrorResponseCase:
+    name: str
+    status_code: int
+    message: str
+
+
+ERROR_RESPONSE_CASES = [
+    ErrorResponseCase(
+        name="422-other-message", status_code=422, message="Unable to find the schema NetworkDevice in the database."
+    ),
+    ErrorResponseCase(name="500", status_code=500, message="Internal server error"),
+]
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_export_with_namespace_filter(httpx_mock: HTTPXMock, clients: BothClients, client_type: str) -> None:
-    response = _schema_response(
-        nodes=[_make_node_dict("Infra", "Device")],
+@pytest.mark.parametrize("case", [pytest.param(case, id=case.name) for case in ERROR_RESPONSE_CASES])
+async def test_export_reports_other_errors_as_returned(
+    httpx_mock: HTTPXMock, clients: BothClients, client_type: str, case: ErrorResponseCase
+) -> None:
+    httpx_mock.add_response(
+        method="GET",
+        url="http://mock/api/schema/export?branch=main&mode=BRIEF",
+        status_code=case.status_code,
+        json={"data": None, "errors": [{"message": case.message, "extensions": {"code": case.status_code}}]},
     )
-    httpx_mock.add_response(method="GET", url="http://mock/api/schema?branch=main&namespaces=Infra", json=response)
 
-    if client_type == "standard":
-        result = await clients.standard.schema.export(branch="main", namespaces=["Infra"])
-    else:
-        result = clients.sync.schema.export(branch="main", namespaces=["Infra"])
+    with pytest.raises(ApiError, match=re.escape(f"HTTP {case.status_code}: {case.message}")) as exc_info:
+        await _export(clients, client_type, branch="main")
 
-    assert "Infra" in result.namespaces
-    assert "Dcim" not in result.namespaces
-
-
-@pytest.mark.parametrize("client_type", client_types)
-async def test_export_empty_when_only_restricted(httpx_mock: HTTPXMock, clients: BothClients, client_type: str) -> None:
-    response = _schema_response(nodes=[_make_node_dict("Core", "Repository")])
-    httpx_mock.add_response(method="GET", url="http://mock/api/schema?branch=main", json=response)
-
-    if client_type == "standard":
-        result = await clients.standard.schema.export(branch="main")
-    else:
-        result = clients.sync.schema.export(branch="main")
-
-    assert result.namespaces == {}
+    assert not isinstance(exc_info.value, VersionNotSupportedError)
+    assert SCHEMA_EXPORT_MIN_INFRAHUB_VERSION not in str(exc_info.value)
+    assert exc_info.value.http_status == case.status_code

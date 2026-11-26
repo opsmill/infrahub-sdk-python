@@ -17,8 +17,16 @@ from rich.table import Table
 from ..async_typer import AsyncTyper
 from ..ctl.client import initialize_client
 from ..ctl.utils import catch_exception, init_logging
+from ..exceptions import ApiError, VersionNotSupportedError
 from ..queries import SCHEMA_HASH_SYNC_STATUS
-from ..schema import NodeSchemaAPI, SchemaWarning, validate_schema
+from ..schema import (
+    NodeSchemaAPI,
+    SchemaExportDocument,
+    SchemaExportMode,
+    SchemaWarning,
+    split_by_namespace,
+    validate_schema,
+)
 from ..yaml import SchemaFile
 from .parameters import CONFIG_PARAM
 from .schema_format import (
@@ -31,6 +39,8 @@ from .schema_format import (
 from .utils import load_yamlfile_from_disk_and_exit
 
 SchemaContainer = Literal["nodes", "generics", "relationships"]
+
+_EXPORT_LEADING_KEYS = ("version", "infrahub_version", "generics", "nodes")
 
 app = AsyncTyper()
 console = Console()
@@ -297,6 +307,11 @@ async def export(
     directory: Path = typer.Option(_default_export_directory, help="Directory path to store schema files"),
     branch: str = typer.Option(None, help="Branch from which to export the schema"),
     namespaces: list[str] = typer.Option([], help="Namespace(s) to export (default: all user-defined)"),
+    mode: SchemaExportMode = typer.Option(
+        SchemaExportMode.BRIEF,
+        help="BRIEF leaves out the values Infrahub derives when the schema is loaded; FULL writes every value",
+    ),
+    single_file: bool = typer.Option(False, "--single-file", help="Write all namespaces to one file, schema.yml"),
     debug: bool = False,
     _: str = CONFIG_PARAM,
 ) -> None:
@@ -304,32 +319,39 @@ async def export(
     init_logging(debug=debug)
 
     client = initialize_client()
-    user_schemas = await client.schema.export(
-        branch=branch,
-        namespaces=namespaces or None,
-    )
+    try:
+        document = await client.schema.export(branch=branch, namespaces=namespaces or None, mode=mode)
+    except (VersionNotSupportedError, ApiError) as exc:
+        console.print(f"[red]Error: {escape(str(exc))}")
+        raise typer.Exit(code=1) from exc
 
-    if not user_schemas.namespaces:
+    if not document.nodes and not document.generics:
         console.print("[yellow]No user-defined schema found to export.")
         return
 
     directory.mkdir(parents=True, exist_ok=True)
 
-    for ns, data in sorted(user_schemas.namespaces.items()):
-        payload: dict[str, Any] = {"version": "1.0"}
-        if data.generics:
-            payload["generics"] = data.generics
-        if data.nodes:
-            payload["nodes"] = data.nodes
-
-        output_file = directory / f"{ns.lower()}.yml"
-        output_file.write_text(
-            yaml.dump(payload, default_flow_style=False, sort_keys=False, allow_unicode=True),
-            encoding="utf-8",
-        )
-        console.print(f"[green] Exported namespace '{ns}' to {output_file}")
+    if single_file:
+        output_file = directory / "schema.yml"
+        _write_schema_file(document=document, output_file=output_file)
+        console.print(f"[green] Exported schema to {output_file}")
+    else:
+        for ns, namespace_document in sorted(split_by_namespace(document).items()):
+            output_file = directory / f"{ns.lower()}.yml"
+            _write_schema_file(document=namespace_document, output_file=output_file)
+            console.print(f"[green] Exported namespace '{ns}' to {output_file}")
 
     console.print(f"[green] Schema exported to {directory}")
+
+
+def _write_schema_file(document: SchemaExportDocument, output_file: Path) -> None:
+    # Only the fields the server returned are written, so a value it left out is not replaced by its default.
+    data = document.model_dump(mode="json", exclude_unset=True)
+    leading = {key: data.pop(key) for key in _EXPORT_LEADING_KEYS if key in data}
+    output_file.write_text(
+        yaml.dump({**leading, **data}, default_flow_style=False, sort_keys=False, allow_unicode=True),
+        encoding="utf-8",
+    )
 
 
 @app.command(name="list")
