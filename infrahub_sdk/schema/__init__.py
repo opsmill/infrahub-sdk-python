@@ -91,7 +91,7 @@ SCHEMA_EXPORT_MIN_INFRAHUB_VERSION = "1.13.0"
 """First Infrahub release that serves the schema export endpoint."""
 
 # An older server routes the export URL as a request for a schema kind named "export".
-_SCHEMA_EXPORT_MISSING_MESSAGE = "Unable to find the schema export in the database."
+_SCHEMA_EXPORT_MISSING_MESSAGE = "Unable to find the schema 'export' in the registry"
 
 
 class DropdownMutationOptionalArgs(TypedDict):

@@ -474,14 +474,14 @@ EXPORT_ERROR_CASES = [
     ExportErrorCase(
         name="older-server",
         status_code=422,
-        message="Unable to find the schema export in the database.",
+        message="Unable to find the schema 'export' in the registry",
         expected_output=f"Infrahub {SCHEMA_EXPORT_MIN_INFRAHUB_VERSION} or later",
     ),
     ExportErrorCase(
-        name="422-other-message",
+        name="422-other-kind",
         status_code=422,
-        message="Unable to find the schema NetworkDevice in the database.",
-        expected_output="HTTP 422: Unable to find the schema NetworkDevice in the database.",
+        message="Unable to find the schema 'NetworkDevice' in the registry",
+        expected_output="HTTP 422: Unable to find the schema 'NetworkDevice' in the registry",
     ),
     ExportErrorCase(
         name="500",

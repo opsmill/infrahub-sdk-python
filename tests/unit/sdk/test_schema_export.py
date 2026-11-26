@@ -59,7 +59,7 @@ EXPORT_RESPONSE: dict[str, Any] = {
 
 OLDER_SERVER_RESPONSE: dict[str, Any] = {
     "data": None,
-    "errors": [{"message": "Unable to find the schema export in the database.", "extensions": {"code": 422}}],
+    "errors": [{"message": "Unable to find the schema 'export' in the registry", "extensions": {"code": 422}}],
 }
 
 
@@ -150,7 +150,10 @@ class ErrorResponseCase:
 
 ERROR_RESPONSE_CASES = [
     ErrorResponseCase(
-        name="422-other-message", status_code=422, message="Unable to find the schema NetworkDevice in the database."
+        name="422-other-kind", status_code=422, message="Unable to find the schema 'NetworkDevice' in the registry"
+    ),
+    ErrorResponseCase(
+        name="422-other-message", status_code=422, message="Unable to find the schema export in the database."
     ),
     ErrorResponseCase(name="500", status_code=500, message="Internal server error"),
 ]
