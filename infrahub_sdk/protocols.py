@@ -370,6 +370,7 @@ class CoreAccountRole(CoreNode):
 class CoreArtifact(CoreTaskTarget):
     checksum: StringOptional
     content_type: String
+    encryption: String
     name: String
     parameters: JSONAttributeOptional
     status: String
@@ -1513,6 +1514,7 @@ class CoreAccountRoleSync(CoreNodeSync):
 class CoreArtifactSync(CoreTaskTargetSync):
     checksum: StringOptional
     content_type: String
+    encryption: String
     name: String
     parameters: JSONAttributeOptional
     status: String
