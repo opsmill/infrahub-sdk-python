@@ -34,3 +34,9 @@ READ_ONLY_FIELDS: dict[str, frozenset[str]] = {
     "TextAttributeParametersWrite": frozenset({"id", "state"}),
     "TextAttributeWrite": frozenset({"inherited"}),
 }
+
+# Optional fields a schema export keeps when set, keyed the same way: schema processing does
+# not derive them, so a schema file without them fails to load.
+KEEP_IN_EXPORT_FIELDS: dict[str, frozenset[str]] = {
+    "NodeSchemaWrite": frozenset({"inherit_from"}),
+}
