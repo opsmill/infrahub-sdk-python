@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import copy
+import pickle  # noqa: S403 - round-tripping our own exception, no untrusted data involved
 import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
@@ -8,6 +10,8 @@ import pytest
 
 from infrahub_sdk.exceptions import (
     ApiError,
+    BranchNotFoundError,
+    InvalidResponseError,
     SchemaNamespaceNotFoundError,
     URLNotFoundError,
     VersionNotSupportedError,
@@ -20,6 +24,8 @@ from infrahub_sdk.schema import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from pytest_httpx import HTTPXMock
 
     from tests.unit.sdk.conftest import BothClients
@@ -248,3 +254,82 @@ async def test_export_reports_a_404_that_names_no_namespace_as_an_unknown_url(
 
     with pytest.raises(URLNotFoundError, match=f"^`{re.escape(NAMESPACE_EXPORT_URL)}` not found.$"):
         await _export(clients, client_type, branch="main", namespaces=["Locaton", "Core"])
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_export_names_a_namespace_whose_error_has_no_message(
+    httpx_mock: HTTPXMock, clients: BothClients, client_type: str
+) -> None:
+    httpx_mock.add_response(
+        method="GET",
+        url=NAMESPACE_EXPORT_URL,
+        status_code=404,
+        json={"data": None, "errors": [{"message": None, "extensions": {"namespace": "Locaton", "code": 404}}]},
+    )
+
+    with pytest.raises(SchemaNamespaceNotFoundError, match=r"^The namespace 'Locaton' cannot be exported$"):
+        await _export(clients, client_type, branch="main", namespaces=["Locaton", "Core"])
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_export_of_an_unknown_branch_raises_branch_not_found(
+    httpx_mock: HTTPXMock, clients: BothClients, client_type: str
+) -> None:
+    httpx_mock.add_response(
+        method="GET",
+        url="http://mock/api/schema/export?branch=nope&mode=BRIEF",
+        status_code=400,
+        json={"data": None, "errors": [{"message": "Branch: nope not found.", "extensions": {"code": 400}}]},
+    )
+
+    with pytest.raises(BranchNotFoundError, match=r"^The requested branch was not found on the server \[nope\]$"):
+        await _export(clients, client_type, branch="nope")
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_export_with_a_value_the_sdk_cannot_read_raises_invalid_response(
+    httpx_mock: HTTPXMock, clients: BothClients, client_type: str
+) -> None:
+    response = {
+        **EXPORT_RESPONSE,
+        "generics": [],
+        "nodes": [{"name": "Device", "namespace": "Network", "attributes": [{"name": "size", "kind": "Decimal"}]}],
+    }
+    httpx_mock.add_response(method="GET", url="http://mock/api/schema/export?branch=main&mode=BRIEF", json=response)
+
+    with pytest.raises(
+        InvalidResponseError,
+        match=r"^The schema export from http://mock/api/schema/export\?branch=main&mode=BRIEF holds a value this "
+        r"version of the SDK cannot read; use an SDK version that matches the Infrahub server\. ",
+    ):
+        await _export(clients, client_type, branch="main")
+
+
+SERIALISATION_ROUND_TRIPS = {
+    "pickle": lambda exc: pickle.loads(pickle.dumps(exc)),  # noqa: S301
+    "deepcopy": copy.deepcopy,
+    "copy": copy.copy,
+}
+
+
+@pytest.mark.parametrize("round_trip", [pytest.param(fn, id=name) for name, fn in SERIALISATION_ROUND_TRIPS.items()])
+def test_export_errors_survive_serialisation(round_trip: Callable[[Exception], Exception]) -> None:
+    namespace_error = SchemaNamespaceNotFoundError(namespaces=["Locaton"], messages=[LOCATON_ERROR["message"]])
+    namespace_error.http_status = 404
+    version_error = VersionNotSupportedError(feature="The schema export", required_version="1.13.0")
+
+    restored_namespace_error = round_trip(namespace_error)
+    restored_version_error = round_trip(version_error)
+
+    assert isinstance(restored_namespace_error, SchemaNamespaceNotFoundError)
+    assert (
+        restored_namespace_error.namespaces,
+        restored_namespace_error.messages,
+        restored_namespace_error.http_status,
+        str(restored_namespace_error),
+    ) == (["Locaton"], [LOCATON_ERROR["message"]], 404, LOCATON_ERROR["message"])
+    assert isinstance(restored_version_error, VersionNotSupportedError)
+    assert (restored_version_error.required_version, str(restored_version_error)) == (
+        "1.13.0",
+        "The schema export requires Infrahub 1.13.0 or later.",
+    )

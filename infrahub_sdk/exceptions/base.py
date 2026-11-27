@@ -215,6 +215,9 @@ class SchemaNamespaceNotFoundError(ApiError):
         self.messages = messages
         super().__init__("; ".join(messages))
 
+    def __reduce__(self) -> tuple[Any, ...]:
+        return (_rebuild_error, (type(self), self.args, self.__dict__))
+
 
 class VersionNotSupportedError(Error):
     """Raised when a feature is used against an Infrahub server version that does not support it."""
@@ -224,6 +227,9 @@ class VersionNotSupportedError(Error):
         self.required_version = required_version
         self.message = f"{feature} requires Infrahub {required_version} or later."
         super().__init__(self.message)
+
+    def __reduce__(self) -> tuple[Any, ...]:
+        return (_rebuild_error, (type(self), self.args, self.__dict__))
 
 
 class BranchNotFoundPayload(Protocol):

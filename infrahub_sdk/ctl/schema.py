@@ -17,7 +17,14 @@ from rich.table import Table
 from ..async_typer import AsyncTyper
 from ..ctl.client import initialize_client
 from ..ctl.utils import catch_exception, init_logging
-from ..exceptions import ApiError, SchemaNamespaceNotFoundError, URLNotFoundError, VersionNotSupportedError
+from ..exceptions import (
+    ApiError,
+    InvalidResponseError,
+    JsonDecodeError,
+    SchemaNamespaceNotFoundError,
+    URLNotFoundError,
+    VersionNotSupportedError,
+)
 from ..queries import SCHEMA_HASH_SYNC_STATUS
 from ..schema import (
     NodeSchemaAPI,
@@ -325,7 +332,13 @@ async def export(
         for message in exc.messages:
             console.print(f"[red]Error: {escape(message)}")
         raise typer.Exit(code=1) from exc
-    except (VersionNotSupportedError, URLNotFoundError, ApiError) as exc:
+    except (
+        VersionNotSupportedError,
+        URLNotFoundError,
+        JsonDecodeError,
+        InvalidResponseError,
+        ApiError,
+    ) as exc:
         console.print(f"[red]Error: {escape(str(exc))}")
         raise typer.Exit(code=1) from exc
 

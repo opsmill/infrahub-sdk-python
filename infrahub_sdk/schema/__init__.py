@@ -12,6 +12,7 @@ from urllib.parse import urlencode
 
 import httpx
 from pydantic import BaseModel, Field
+from pydantic import ValidationError as PydanticValidationError
 
 from ..exceptions import (
     ApiError,
@@ -162,16 +163,18 @@ class InfrahubSchemaBase:
         return f"{self.client.address}/api/schema/export?{urlencode(url_parts)}"
 
     @staticmethod
-    def _parse_export_response(response: httpx.Response) -> SchemaExportDocument:
+    def _parse_export_response(response: httpx.Response, branch: str) -> SchemaExportDocument:
         """Read the schema export endpoint's response.
 
         Raises:
+            BranchNotFoundError: When the branch does not exist on the server.
             VersionNotSupportedError: When the server is older than the first release with the endpoint.
             SchemaNamespaceNotFoundError: When a requested namespace does not exist on the branch or cannot be
                 exported, with one message per namespace.
             URLNotFoundError: When the server returns a 404 that does not name a namespace.
             ApiError: When the server returns any other error, with the messages the server returned.
             JsonDecodeError: When the server returns a body that is not JSON.
+            InvalidResponseError: When the document holds a value this SDK version cannot read.
 
         """
         if response.status_code == httpx.codes.OK:
@@ -183,6 +186,16 @@ class InfrahubSchemaBase:
                     content=response.text,
                     url=str(response.url),
                 ) from exc
+            except PydanticValidationError as exc:
+                raise InvalidResponseError(
+                    f"The schema export from {response.url} holds a value this version of the SDK cannot read; "
+                    f"use an SDK version that matches the Infrahub server. {exc}"
+                ) from exc
+
+        if response.status_code == httpx.codes.BAD_REQUEST:
+            raise BranchNotFoundError(
+                identifier=branch, message=f"The requested branch was not found on the server [{branch}]"
+            )
 
         try:
             body = response.json()
@@ -198,12 +211,17 @@ class InfrahubSchemaBase:
             )
 
         if response.status_code == httpx.codes.NOT_FOUND:
-            namespaces = [_error_namespace(error) for error in error_list]
-            if not error_list or None in namespaces:
+            named_errors = [(error, _error_namespace(error)) for error in error_list]
+            if not named_errors or any(namespace is None for _, namespace in named_errors):
                 raise URLNotFoundError(url=str(response.url))
-            namespace_error = SchemaNamespaceNotFoundError(
-                namespaces=[namespace for namespace in namespaces if namespace is not None], messages=messages
-            )
+            namespaces = [namespace for _, namespace in named_errors if namespace is not None]
+            namespace_messages = [
+                message
+                if isinstance(message := error.get("message"), str)
+                else f"The namespace '{namespace}' cannot be exported"
+                for error, namespace in named_errors
+            ]
+            namespace_error = SchemaNamespaceNotFoundError(namespaces=namespaces, messages=namespace_messages)
             namespace_error.http_status = response.status_code
             namespace_error.errors = error_list
             raise namespace_error
@@ -627,15 +645,18 @@ class InfrahubSchema(InfrahubSchemaBase):
             The server's document, holding only the fields the server returned.
 
         Raises:
+            BranchNotFoundError: When the branch does not exist on the server.
             VersionNotSupportedError: When the server is older than the first release with the export endpoint.
             SchemaNamespaceNotFoundError: When a namespace does not exist on the branch or cannot be exported.
             URLNotFoundError: When the server returns a 404 that does not name a namespace.
             ApiError: When the server returns any other error, with the messages the server returned.
+            JsonDecodeError: When the server returns a body that is not JSON.
+            InvalidResponseError: When the document holds a value this SDK version cannot read.
 
         """
         branch = branch or self.client.default_branch
         response = await self.client._get(url=self._export_url(branch=branch, namespaces=namespaces, mode=mode))
-        return self._parse_export_response(response=response)
+        return self._parse_export_response(response=response, branch=branch)
 
     async def get_graphql_schema(self, branch: str | None = None) -> str:
         """Get the GraphQL schema as a string.
@@ -905,15 +926,18 @@ class InfrahubSchemaSync(InfrahubSchemaBase):
             The server's document, holding only the fields the server returned.
 
         Raises:
+            BranchNotFoundError: When the branch does not exist on the server.
             VersionNotSupportedError: When the server is older than the first release with the export endpoint.
             SchemaNamespaceNotFoundError: When a namespace does not exist on the branch or cannot be exported.
             URLNotFoundError: When the server returns a 404 that does not name a namespace.
             ApiError: When the server returns any other error, with the messages the server returned.
+            JsonDecodeError: When the server returns a body that is not JSON.
+            InvalidResponseError: When the document holds a value this SDK version cannot read.
 
         """
         branch = branch or self.client.default_branch
         response = self.client._get(url=self._export_url(branch=branch, namespaces=namespaces, mode=mode))
-        return self._parse_export_response(response=response)
+        return self._parse_export_response(response=response, branch=branch)
 
     def get_graphql_schema(self, branch: str | None = None) -> str:
         """Get the GraphQL schema as a string.
