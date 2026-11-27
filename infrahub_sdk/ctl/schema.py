@@ -29,12 +29,12 @@ from ..exceptions import (
 from ..queries import SCHEMA_HASH_SYNC_STATUS
 from ..schema import (
     NodeSchemaAPI,
-    SchemaExportDocument,
     SchemaExportMode,
     SchemaWarning,
     split_by_namespace,
     validate_schema,
 )
+from ..schema.export import EXPORT_ELEMENT_SECTIONS
 from ..yaml import SchemaFile
 from .parameters import CONFIG_PARAM
 from .schema_format import (
@@ -328,7 +328,8 @@ async def export(
 
     client = initialize_client()
     try:
-        document = await client.schema.export(branch=branch, namespaces=namespaces or None, mode=mode)
+        # Written as received, so the files keep the fields an older SDK version does not know.
+        document = await client.schema._export_payload(branch=branch, namespaces=namespaces or None, mode=mode)
     except SchemaNamespaceNotFoundError as exc:
         for message in exc.messages:
             console.print(f"[red]Error: {escape(message)}")
@@ -345,7 +346,7 @@ async def export(
         console.print(f"[red]Error: {escape(str(exc))}")
         raise typer.Exit(code=1) from exc
 
-    if not document.nodes and not document.generics:
+    if not any(document.get(section) for section in EXPORT_ELEMENT_SECTIONS):
         console.print("[yellow]No user-defined schema found to export.")
         return
 
@@ -364,9 +365,8 @@ async def export(
     console.print(f"[green] Schema exported to {escape(str(directory))}")
 
 
-def _write_schema_file(document: SchemaExportDocument, output_file: Path) -> None:
-    # Only the fields the server returned are written, so a value it left out is not replaced by its default.
-    data = document.model_dump(mode="json", exclude_unset=True)
+def _write_schema_file(document: dict[str, Any], output_file: Path) -> None:
+    data = dict(document)
     leading = {key: data.pop(key) for key in _EXPORT_LEADING_KEYS if key in data}
     output_file.write_text(
         yaml.dump({**leading, **data}, default_flow_style=False, sort_keys=False, allow_unicode=True),

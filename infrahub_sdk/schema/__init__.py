@@ -163,6 +163,17 @@ class InfrahubSchemaBase:
         url_parts.append(("mode", SchemaExportMode(mode).value))
         return f"{self.client.address}/api/schema/export?{urlencode(url_parts)}"
 
+    @classmethod
+    def _export_payload_from_response(cls, response: httpx.Response, branch: str) -> dict[str, Any]:
+        """Check the schema export endpoint's response, then return its JSON body with every field it holds.
+
+        The write models of this SDK version drop the fields they do not declare, so the checked document cannot be
+        returned instead.
+        """
+        cls._parse_export_response(response=response, branch=branch)
+        payload: dict[str, Any] = response.json()
+        return payload
+
     @staticmethod
     def _parse_export_response(response: httpx.Response, branch: str) -> SchemaExportDocument:
         """Read the schema export endpoint's response.
@@ -663,6 +674,17 @@ class InfrahubSchema(InfrahubSchemaBase):
         response = await self.client._get(url=self._export_url(branch=branch, namespaces=namespaces, mode=mode))
         return self._parse_export_response(response=response, branch=branch)
 
+    async def _export_payload(
+        self,
+        branch: str | None = None,
+        namespaces: list[str] | None = None,
+        mode: SchemaExportMode = SchemaExportMode.BRIEF,
+    ) -> dict[str, Any]:
+        """Export the user-defined schema of a branch and return the server's document with every field it holds."""
+        branch = branch or self.client.default_branch
+        response = await self.client._get(url=self._export_url(branch=branch, namespaces=namespaces, mode=mode))
+        return self._export_payload_from_response(response=response, branch=branch)
+
     async def get_graphql_schema(self, branch: str | None = None) -> str:
         """Get the GraphQL schema as a string.
 
@@ -943,6 +965,17 @@ class InfrahubSchemaSync(InfrahubSchemaBase):
         branch = branch or self.client.default_branch
         response = self.client._get(url=self._export_url(branch=branch, namespaces=namespaces, mode=mode))
         return self._parse_export_response(response=response, branch=branch)
+
+    def _export_payload(
+        self,
+        branch: str | None = None,
+        namespaces: list[str] | None = None,
+        mode: SchemaExportMode = SchemaExportMode.BRIEF,
+    ) -> dict[str, Any]:
+        """Export the user-defined schema of a branch and return the server's document with every field it holds."""
+        branch = branch or self.client.default_branch
+        response = self.client._get(url=self._export_url(branch=branch, namespaces=namespaces, mode=mode))
+        return self._export_payload_from_response(response=response, branch=branch)
 
     def get_graphql_schema(self, branch: str | None = None) -> str:
         """Get the GraphQL schema as a string.

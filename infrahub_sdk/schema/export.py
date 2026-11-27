@@ -1,8 +1,14 @@
 from __future__ import annotations
 
 from enum import Enum
+from typing import TYPE_CHECKING, Any
 
-from .generated.write import GenericSchemaWrite, InfrahubSchemaWrite, NodeSchemaWrite
+from .generated.write import InfrahubSchemaWrite
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+
+EXPORT_ELEMENT_SECTIONS = ("generics", "nodes")
 
 
 class SchemaExportMode(str, Enum):
@@ -19,27 +25,16 @@ class SchemaExportDocument(InfrahubSchemaWrite):
     infrahub_version: str
 
 
-def split_by_namespace(document: SchemaExportDocument) -> dict[str, SchemaExportDocument]:
-    """Split an exported schema into one document per namespace, keeping the order of the input.
+def split_by_namespace(document: Mapping[str, Any]) -> dict[str, dict[str, Any]]:
+    """Split an exported schema, as the server returned it, into one document per namespace.
 
-    A document only sets `generics` or `nodes` when its namespace has some, so a dump with
-    `exclude_unset=True` leaves out an empty list.
+    Namespaces keep the order of the input. Each document holds every other top-level field of the input, and holds `generics` or `nodes` only
+    when its namespace has some. Fields are copied as they are, including fields this SDK version does not know.
     """
-    generics: dict[str, list[GenericSchemaWrite]] = {}
-    nodes: dict[str, list[NodeSchemaWrite]] = {}
-    for generic in document.generics:
-        generics.setdefault(generic.namespace, []).append(generic)
-    for node in document.nodes:
-        nodes.setdefault(node.namespace, []).append(node)
-
-    documents: dict[str, SchemaExportDocument] = {}
-    for namespace in [*generics, *nodes]:
-        if namespace in documents:
-            continue
-        namespace_document = SchemaExportDocument(version=document.version, infrahub_version=document.infrahub_version)
-        if namespace in generics:
-            namespace_document.generics = generics[namespace]
-        if namespace in nodes:
-            namespace_document.nodes = nodes[namespace]
-        documents[namespace] = namespace_document
+    shared = {key: value for key, value in document.items() if key not in EXPORT_ELEMENT_SECTIONS}
+    documents: dict[str, dict[str, Any]] = {}
+    for section in EXPORT_ELEMENT_SECTIONS:
+        for element in document.get(section, []):
+            namespace_document = documents.setdefault(element["namespace"], dict(shared))
+            namespace_document.setdefault(section, []).append(element)
     return documents

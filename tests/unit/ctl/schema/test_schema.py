@@ -405,6 +405,47 @@ def test_schema_export_single_file_writes_the_endpoint_document(httpx_mock: HTTP
     assert schema == EXPORT_RESPONSE
 
 
+UNKNOWN_NODE = {
+    "name": "Rack",
+    "namespace": "Location",
+    "unknown_node_setting": "kept",
+    "attributes": [{"name": "name", "kind": "Text", "unknown_attribute_setting": True}],
+    "relationships": [{"name": "site", "peer": "LocationSite", "unknown_relationship_setting": 1}],
+}
+
+EXPORT_RESPONSE_WITH_UNKNOWN_FIELDS: dict[str, Any] = {
+    **EXPORT_RESPONSE,
+    "unknown_document_setting": "kept",
+    "nodes": [*EXPORT_RESPONSE["nodes"], UNKNOWN_NODE],
+}
+
+
+def test_schema_export_single_file_keeps_fields_this_sdk_does_not_know(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
+    httpx_mock.add_response(method="GET", url=EXPORT_URL, json=EXPORT_RESPONSE_WITH_UNKNOWN_FIELDS)
+
+    result = runner.invoke(app, ["schema", "export", "--directory", str(tmp_path), "--single-file"])
+
+    assert result.exit_code == 0, result.stdout
+    assert _read_yaml(tmp_path / "schema.yml") == EXPORT_RESPONSE_WITH_UNKNOWN_FIELDS
+
+
+def test_schema_export_per_namespace_keeps_fields_this_sdk_does_not_know(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
+    httpx_mock.add_response(method="GET", url=EXPORT_URL, json=EXPORT_RESPONSE_WITH_UNKNOWN_FIELDS)
+
+    result = runner.invoke(app, ["schema", "export", "--directory", str(tmp_path)])
+
+    assert result.exit_code == 0, result.stdout
+    location = _read_yaml(tmp_path / "location.yml")
+    assert list(location) == ["version", "infrahub_version", "nodes", "unknown_document_setting"]
+    assert location == {
+        "version": "1.0",
+        "infrahub_version": "1.13.0",
+        "nodes": [EXPORT_RESPONSE["nodes"][1], UNKNOWN_NODE],
+        "unknown_document_setting": "kept",
+    }
+    assert _read_yaml(tmp_path / "network.yml")["unknown_document_setting"] == "kept"
+
+
 def test_schema_export_writes_no_default_for_a_field_the_response_left_out(
     httpx_mock: HTTPXMock, tmp_path: Path
 ) -> None:

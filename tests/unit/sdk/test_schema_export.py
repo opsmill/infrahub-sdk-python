@@ -119,23 +119,29 @@ async def test_export_sends_branch_namespaces_and_mode(
 
 
 def test_split_by_namespace_keeps_versions_and_input_order() -> None:
-    document = SchemaExportDocument.model_validate(EXPORT_RESPONSE)
-
-    documents = split_by_namespace(document)
+    documents = split_by_namespace(EXPORT_RESPONSE)
 
     assert list(documents) == ["Network", "Location"]
-    for namespace_document in documents.values():
-        assert isinstance(namespace_document, SchemaExportDocument)
-        assert namespace_document.version == "1.0"
-        assert namespace_document.infrahub_version == "1.13.0"
-    assert [generic.name for generic in documents["Network"].generics] == ["Interface"]
-    assert [node.name for node in documents["Network"].nodes] == ["Device", "PhysicalInterface"]
-    assert [node.name for node in documents["Location"].nodes] == ["Site"]
-    assert documents["Location"].model_dump(mode="json", exclude_unset=True) == {
+    assert documents["Network"] == {
+        "version": "1.0",
+        "infrahub_version": "1.13.0",
+        "generics": EXPORT_RESPONSE["generics"],
+        "nodes": [EXPORT_RESPONSE["nodes"][0], EXPORT_RESPONSE["nodes"][2]],
+    }
+    assert documents["Location"] == {
         "version": "1.0",
         "infrahub_version": "1.13.0",
         "nodes": [EXPORT_RESPONSE["nodes"][1]],
     }
+
+
+def test_split_by_namespace_copies_every_other_top_level_field() -> None:
+    documents = split_by_namespace({**EXPORT_RESPONSE, "unknown_document_setting": "kept"})
+
+    assert [namespace_document["unknown_document_setting"] for namespace_document in documents.values()] == [
+        "kept",
+        "kept",
+    ]
 
 
 @pytest.mark.parametrize("client_type", client_types)
