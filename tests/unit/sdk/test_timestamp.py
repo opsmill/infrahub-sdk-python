@@ -1,22 +1,27 @@
+import warnings
+from dataclasses import dataclass
 from datetime import datetime, timezone
+from typing import Literal, TypedDict
 
 import pytest
-from whenever import Instant
+import whenever
+from whenever import Instant, ZonedDateTime
 
 from infrahub_sdk.exceptions import TimestampFormatError
 from infrahub_sdk.timestamp import Timestamp
 
 UTC = timezone.utc  # Required for older versions of Python
+WHENEVER_0_11 = tuple(int(part) for part in whenever.__version__.split(".")[:2]) >= (0, 11)
 
 
 def test_init_empty() -> None:
     t1 = Timestamp()
     assert isinstance(t1, Timestamp)
-    assert t1.to_datetime() == t1._obj.py_datetime()
+    assert t1.to_datetime() == t1._obj.to_stdlib()
 
     t2 = Timestamp(None)
     assert isinstance(t2, Timestamp)
-    assert t2.to_datetime() == t2._obj.py_datetime()
+    assert t2.to_datetime() == t2._obj.to_stdlib()
 
 
 def test_init_timestamp() -> None:
@@ -24,7 +29,7 @@ def test_init_timestamp() -> None:
     t2 = Timestamp(t1)
     assert t1.to_string() == t2.to_string()
     assert isinstance(t2, Timestamp)
-    assert t2.to_datetime() == t2._obj.py_datetime()
+    assert t2.to_datetime() == t2._obj.to_stdlib()
 
 
 def test_parse_string() -> None:
@@ -101,6 +106,89 @@ def test_subtract() -> None:
     t1 = Timestamp("2022-01-01T10:05:01.123Z")
     t2 = t1.subtract(hours=1)
     assert t2.to_string() == "2022-01-01T09:05:01.123000Z"
+
+
+class ShiftUnits(TypedDict, total=False):
+    days: int
+    hours: int
+
+
+@dataclass
+class DaylightSavingCase:
+    name: str
+    start: ZonedDateTime
+    operation: Literal["add", "subtract"]
+    units: ShiftUnits
+    expected: str
+    expected_from_whenever_0_11: str | None = None
+    """whenever 0.11 keeps the starting offset when the shift by days lands in a repeated hour."""
+
+
+DAYLIGHT_SAVING_CASES = [
+    DaylightSavingCase(
+        name="add-into-skipped-hour",
+        start=ZonedDateTime(2024, 3, 30, 2, 30, tz="Europe/Amsterdam"),
+        operation="add",
+        units={"days": 1},
+        expected="2024-03-31T03:30:00.000000+02:00",
+    ),
+    DaylightSavingCase(
+        name="subtract-into-skipped-hour",
+        start=ZonedDateTime(2024, 4, 1, 2, 30, tz="Europe/Amsterdam"),
+        operation="subtract",
+        units={"days": 1},
+        expected="2024-03-31T03:30:00.000000+02:00",
+    ),
+    DaylightSavingCase(
+        name="add-into-repeated-hour",
+        start=ZonedDateTime(2024, 10, 26, 2, 30, tz="Europe/Amsterdam"),
+        operation="add",
+        units={"days": 1},
+        expected="2024-10-27T02:30:00.000000+02:00",
+    ),
+    DaylightSavingCase(
+        name="subtract-into-repeated-hour",
+        start=ZonedDateTime(2024, 10, 28, 2, 30, tz="Europe/Amsterdam"),
+        operation="subtract",
+        units={"days": 1},
+        expected="2024-10-27T02:30:00.000000+02:00",
+        expected_from_whenever_0_11="2024-10-27T02:30:00.000000+01:00",
+    ),
+    DaylightSavingCase(
+        name="subtract-days-into-repeated-hour-then-hours",
+        start=ZonedDateTime(2024, 10, 28, 2, 30, tz="Europe/Amsterdam"),
+        operation="subtract",
+        units={"days": 1, "hours": 2},
+        expected="2024-10-27T00:30:00.000000+02:00",
+        expected_from_whenever_0_11="2024-10-27T01:30:00.000000+02:00",
+    ),
+]
+
+
+@pytest.mark.parametrize("case", [pytest.param(tc, id=tc.name) for tc in DAYLIGHT_SAVING_CASES])
+def test_shift_across_daylight_saving_change_resolves_without_warning(case: DaylightSavingCase) -> None:
+    timestamp = Timestamp(case.start)
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        result = timestamp.add(**case.units) if case.operation == "add" else timestamp.subtract(**case.units)
+
+    expected = case.expected_from_whenever_0_11 if WHENEVER_0_11 and case.expected_from_whenever_0_11 else case.expected
+    assert result.to_string() == expected
+
+
+@pytest.mark.parametrize(
+    ("input_str", "expected_str"),
+    [
+        pytest.param("2024-03-31T02:30:00[Europe/Amsterdam]", "2024-03-31T03:30:00.000000+02:00", id="skipped-hour"),
+        pytest.param("2024-10-27T02:30:00[Europe/Amsterdam]", "2024-10-27T02:30:00.000000+02:00", id="repeated-hour"),
+    ],
+)
+def test_parse_zoned_string_across_daylight_saving_change_without_warning(input_str: str, expected_str: str) -> None:
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        timestamp = Timestamp(input_str)
+
+    assert timestamp.to_string() == expected_str
 
 
 def test_compare() -> None:

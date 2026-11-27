@@ -3,8 +3,9 @@ from __future__ import annotations
 import re
 import warnings
 from datetime import datetime, timezone
-from typing import Literal, TypedDict
+from typing import Any, Literal, TypedDict
 
+import whenever
 from typing_extensions import NotRequired, Self
 from whenever import Date, Instant, OffsetDateTime, PlainDateTime, Time, ZonedDateTime
 
@@ -25,6 +26,26 @@ REGEX_MAPPING = {
     "hours": r"(\d+)(h|hour|hours)",
 }
 
+_WHENEVER_0_11 = tuple(int(part) for part in whenever.__version__.split(".")[:2]) >= (0, 11)
+# whenever 0.11 renamed the keyword that resolves a skipped or repeated local time, and warns on the old name.
+_DISAMBIGUATION_KEYWORD = "disambiguation" if _WHENEVER_0_11 else "disambiguate"
+
+
+def _disambiguation(policy: Literal["compatible"]) -> dict[str, Any]:
+    """Return the keyword argument that tells whenever how to resolve a skipped or repeated local time.
+
+    The value is typed loosely because the keyword name depends on the installed whenever version.
+    """
+    return {_DISAMBIGUATION_KEYWORD: policy}
+
+
+def _parse_disambiguation() -> dict[str, Any]:
+    """Return the keyword arguments that make whenever's ISO parser resolve a skipped or repeated local time as "compatible".
+
+    whenever 0.10 applies that policy and accepts no keyword, while 0.11 warns unless the keyword is passed.
+    """
+    return {"disambiguation": "compatible"} if _WHENEVER_0_11 else {}
+
 
 class Timestamp:
     _obj: ZonedDateTime
@@ -37,7 +58,7 @@ class Timestamp:
         elif isinstance(value, str):
             self._obj = self._parse_string(value)
         else:
-            self._obj = ZonedDateTime.now("UTC").round(unit="microsecond")
+            self._obj = ZonedDateTime.now("UTC").round("microsecond")
 
     @property
     def obj(self) -> ZonedDateTime:
@@ -51,7 +72,7 @@ class Timestamp:
     @classmethod
     def _parse_string(cls, value: str) -> ZonedDateTime:
         try:
-            return ZonedDateTime.parse_iso(value)
+            return ZonedDateTime.parse_iso(value, **_parse_disambiguation())
         except ValueError:
             pass
 
@@ -76,7 +97,7 @@ class Timestamp:
         try:
             date = Date.parse_iso(value)
             local_date = date.at(Time(12, 00))
-            return local_date.assume_tz("UTC", disambiguate="compatible")
+            return local_date.assume_tz("UTC", **_disambiguation("compatible"))
         except ValueError:
             pass
 
@@ -114,7 +135,7 @@ class Timestamp:
         return self._obj.timestamp()
 
     def to_datetime(self) -> datetime:
-        return self._obj.py_datetime()
+        return self._obj.to_stdlib()
 
     def get_obj(self) -> ZonedDateTime:
         return self._obj
@@ -181,7 +202,7 @@ class Timestamp:
                 milliseconds=milliseconds,
                 microseconds=microseconds,
                 nanoseconds=nanoseconds,
-                disambiguate=disambiguate,
+                **_disambiguation(disambiguate),
             )
         )
 
@@ -211,6 +232,6 @@ class Timestamp:
                 milliseconds=milliseconds,
                 microseconds=microseconds,
                 nanoseconds=nanoseconds,
-                disambiguate=disambiguate,
+                **_disambiguation(disambiguate),
             )
         )
