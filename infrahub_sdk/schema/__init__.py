@@ -18,7 +18,9 @@ from ..exceptions import (
     BranchNotFoundError,
     InvalidResponseError,
     JsonDecodeError,
+    SchemaNamespaceNotFoundError,
     SchemaNotFoundError,
+    URLNotFoundError,
     ValidationError,
     VersionNotSupportedError,
 )
@@ -94,6 +96,13 @@ SCHEMA_EXPORT_MIN_INFRAHUB_VERSION = "1.13.0"
 _SCHEMA_EXPORT_MISSING_MESSAGE = "Unable to find the schema 'export' in the registry"
 
 
+def _error_namespace(error: dict[str, Any]) -> str | None:
+    """Return the namespace a schema export error names in its extensions, if any."""
+    extensions = error.get("extensions")
+    namespace = extensions.get("namespace") if isinstance(extensions, dict) else None
+    return namespace if isinstance(namespace, str) else None
+
+
 class DropdownMutationOptionalArgs(TypedDict):
     color: str | None
     description: str | None
@@ -158,6 +167,9 @@ class InfrahubSchemaBase:
 
         Raises:
             VersionNotSupportedError: When the server is older than the first release with the endpoint.
+            SchemaNamespaceNotFoundError: When a requested namespace does not exist on the branch or cannot be
+                exported, with one message per namespace.
+            URLNotFoundError: When the server returns a 404 that does not name a namespace.
             ApiError: When the server returns any other error, with the messages the server returned.
             JsonDecodeError: When the server returns a body that is not JSON.
 
@@ -184,6 +196,17 @@ class InfrahubSchemaBase:
             raise VersionNotSupportedError(
                 feature="The schema export", required_version=SCHEMA_EXPORT_MIN_INFRAHUB_VERSION
             )
+
+        if response.status_code == httpx.codes.NOT_FOUND:
+            namespaces = [_error_namespace(error) for error in error_list]
+            if not error_list or None in namespaces:
+                raise URLNotFoundError(url=str(response.url))
+            namespace_error = SchemaNamespaceNotFoundError(
+                namespaces=[namespace for namespace in namespaces if namespace is not None], messages=messages
+            )
+            namespace_error.http_status = response.status_code
+            namespace_error.errors = error_list
+            raise namespace_error
 
         details = " | ".join(messages) if messages else response.text
         api_error = ApiError(message=f"HTTP {response.status_code}: {details}")
@@ -605,6 +628,8 @@ class InfrahubSchema(InfrahubSchemaBase):
 
         Raises:
             VersionNotSupportedError: When the server is older than the first release with the export endpoint.
+            SchemaNamespaceNotFoundError: When a namespace does not exist on the branch or cannot be exported.
+            URLNotFoundError: When the server returns a 404 that does not name a namespace.
             ApiError: When the server returns any other error, with the messages the server returned.
 
         """
@@ -881,6 +906,8 @@ class InfrahubSchemaSync(InfrahubSchemaBase):
 
         Raises:
             VersionNotSupportedError: When the server is older than the first release with the export endpoint.
+            SchemaNamespaceNotFoundError: When a namespace does not exist on the branch or cannot be exported.
+            URLNotFoundError: When the server returns a 404 that does not name a namespace.
             ApiError: When the server returns any other error, with the messages the server returned.
 
         """

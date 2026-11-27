@@ -17,7 +17,7 @@ from rich.table import Table
 from ..async_typer import AsyncTyper
 from ..ctl.client import initialize_client
 from ..ctl.utils import catch_exception, init_logging
-from ..exceptions import ApiError, VersionNotSupportedError
+from ..exceptions import ApiError, SchemaNamespaceNotFoundError, URLNotFoundError, VersionNotSupportedError
 from ..queries import SCHEMA_HASH_SYNC_STATUS
 from ..schema import (
     NodeSchemaAPI,
@@ -321,7 +321,11 @@ async def export(
     client = initialize_client()
     try:
         document = await client.schema.export(branch=branch, namespaces=namespaces or None, mode=mode)
-    except (VersionNotSupportedError, ApiError) as exc:
+    except SchemaNamespaceNotFoundError as exc:
+        for message in exc.messages:
+            console.print(f"[red]Error: {escape(message)}")
+        raise typer.Exit(code=1) from exc
+    except (VersionNotSupportedError, URLNotFoundError, ApiError) as exc:
         console.print(f"[red]Error: {escape(str(exc))}")
         raise typer.Exit(code=1) from exc
 

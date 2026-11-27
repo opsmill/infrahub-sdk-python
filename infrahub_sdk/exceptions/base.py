@@ -37,6 +37,7 @@ __all__ = [
     "RateLimitError",
     "RepositoryFileNotFoundError",
     "ResourceNotDefinedError",
+    "SchemaNamespaceNotFoundError",
     "SchemaNotFoundError",
     "ServerNotReachableError",
     "ServerNotResponsiveError",
@@ -204,6 +205,15 @@ class TrackingGroupCleanupError(Error):
         # Rebuild from the failures rather than the formatted message, so the exception
         # survives the serialization that a task orchestrator applies to a failed run.
         return (self.__class__, (self.failures,))
+
+
+class SchemaNamespaceNotFoundError(ApiError):
+    """Raised when a schema export names a namespace that does not exist on the branch or cannot be exported."""
+
+    def __init__(self, namespaces: list[str], messages: list[str]) -> None:
+        self.namespaces = namespaces
+        self.messages = messages
+        super().__init__("; ".join(messages))
 
 
 class VersionNotSupportedError(Error):

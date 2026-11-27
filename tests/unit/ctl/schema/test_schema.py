@@ -510,3 +510,63 @@ def test_schema_export_error_response(httpx_mock: HTTPXMock, tmp_path: Path, cas
     if case.name != "older-server":
         assert SCHEMA_EXPORT_MIN_INFRAHUB_VERSION not in output
     assert not directory.exists()
+
+
+NAMESPACE_EXPORT_URL = "http://mock/api/schema/export?branch=main&namespaces=Locaton&namespaces=Core&mode=BRIEF"
+
+
+def test_schema_export_prints_each_namespace_the_server_cannot_export(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
+    httpx_mock.add_response(
+        method="GET",
+        url=NAMESPACE_EXPORT_URL,
+        status_code=404,
+        json={
+            "data": None,
+            "errors": [
+                {
+                    "message": "The namespace 'Locaton' does not exist on the branch 'main'",
+                    "extensions": {"namespace": "Locaton", "code": 404},
+                },
+                {
+                    "message": "The namespace 'Core' is reserved for Infrahub and cannot be exported",
+                    "extensions": {"namespace": "Core", "code": 404},
+                },
+            ],
+        },
+    )
+    directory = tmp_path / "export"
+
+    result = runner.invoke(
+        app,
+        ["schema", "export", "--directory", str(directory), "--namespaces", "Locaton", "--namespaces", "Core"],
+    )
+
+    assert result.exit_code == 1
+    assert remove_ansi_color(result.stdout).splitlines() == [
+        "Error: The namespace 'Locaton' does not exist on the branch 'main'",
+        "Error: The namespace 'Core' is reserved for Infrahub and cannot be exported",
+    ]
+    assert not directory.exists()
+
+
+def test_schema_export_reports_a_404_that_names_no_namespace_as_an_unknown_url(
+    httpx_mock: HTTPXMock, tmp_path: Path
+) -> None:
+    httpx_mock.add_response(
+        method="GET",
+        url=EXPORT_URL,
+        status_code=404,
+        json={
+            "data": None,
+            "errors": [
+                {"message": "The requested endpoint /api/schema/export does not exist", "extensions": {"code": 404}}
+            ],
+        },
+    )
+    directory = tmp_path / "export"
+
+    result = runner.invoke(app, ["schema", "export", "--directory", str(directory)])
+
+    assert result.exit_code == 1
+    assert remove_ansi_color(result.stdout.replace("\n", "")) == f"Error: `{EXPORT_URL}` not found."
+    assert not directory.exists()

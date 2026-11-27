@@ -6,7 +6,12 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 
-from infrahub_sdk.exceptions import ApiError, VersionNotSupportedError
+from infrahub_sdk.exceptions import (
+    ApiError,
+    SchemaNamespaceNotFoundError,
+    URLNotFoundError,
+    VersionNotSupportedError,
+)
 from infrahub_sdk.schema import (
     SCHEMA_EXPORT_MIN_INFRAHUB_VERSION,
     SchemaExportDocument,
@@ -177,3 +182,69 @@ async def test_export_reports_other_errors_as_returned(
     assert not isinstance(exc_info.value, VersionNotSupportedError)
     assert SCHEMA_EXPORT_MIN_INFRAHUB_VERSION not in str(exc_info.value)
     assert exc_info.value.http_status == case.status_code
+
+
+NAMESPACE_EXPORT_URL = "http://mock/api/schema/export?branch=main&namespaces=Locaton&namespaces=Core&mode=BRIEF"
+LOCATON_ERROR = {
+    "message": "The namespace 'Locaton' does not exist on the branch 'main'",
+    "extensions": {"namespace": "Locaton", "code": 404},
+}
+CORE_ERROR = {
+    "message": "The namespace 'Core' is reserved for Infrahub and cannot be exported",
+    "extensions": {"namespace": "Core", "code": 404},
+}
+UNKNOWN_ENDPOINT_ERROR = {
+    "message": "The requested endpoint /api/schema/export does not exist",
+    "extensions": {"code": 404},
+}
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_export_names_each_namespace_the_server_cannot_export(
+    httpx_mock: HTTPXMock, clients: BothClients, client_type: str
+) -> None:
+    httpx_mock.add_response(
+        method="GET",
+        url=NAMESPACE_EXPORT_URL,
+        status_code=404,
+        json={"data": None, "errors": [LOCATON_ERROR, CORE_ERROR]},
+    )
+
+    with pytest.raises(
+        SchemaNamespaceNotFoundError,
+        match=(
+            r"^The namespace 'Locaton' does not exist on the branch 'main'; "
+            r"The namespace 'Core' is reserved for Infrahub and cannot be exported$"
+        ),
+    ) as exc_info:
+        await _export(clients, client_type, branch="main", namespaces=["Locaton", "Core"])
+
+    assert exc_info.value.namespaces == ["Locaton", "Core"]
+    assert exc_info.value.messages == [LOCATON_ERROR["message"], CORE_ERROR["message"]]
+    assert exc_info.value.http_status == 404
+
+
+@dataclass
+class NotFoundCase:
+    name: str
+    body: dict[str, Any]
+
+
+NOT_FOUND_CASES = [
+    NotFoundCase(name="fastapi-default", body={"detail": "Not Found"}),
+    NotFoundCase(name="infrahub-unknown-endpoint", body={"data": None, "errors": [UNKNOWN_ENDPOINT_ERROR]}),
+    NotFoundCase(
+        name="one-error-without-namespace", body={"data": None, "errors": [LOCATON_ERROR, UNKNOWN_ENDPOINT_ERROR]}
+    ),
+]
+
+
+@pytest.mark.parametrize("client_type", client_types)
+@pytest.mark.parametrize("case", [pytest.param(case, id=case.name) for case in NOT_FOUND_CASES])
+async def test_export_reports_a_404_that_names_no_namespace_as_an_unknown_url(
+    httpx_mock: HTTPXMock, clients: BothClients, client_type: str, case: NotFoundCase
+) -> None:
+    httpx_mock.add_response(method="GET", url=NAMESPACE_EXPORT_URL, status_code=404, json=case.body)
+
+    with pytest.raises(URLNotFoundError, match=f"^`{re.escape(NAMESPACE_EXPORT_URL)}` not found.$"):
+        await _export(clients, client_type, branch="main", namespaces=["Locaton", "Core"])
