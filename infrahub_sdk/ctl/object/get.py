@@ -72,7 +72,7 @@ async def get_command(
             typer.echo(result)
         return
 
-    filters: dict[str, Any] = parse_filter_args(filter_args or [])
+    filters: dict[str, Any] = parse_filter_args(filter_args or [], schema=schema)
     nodes = await client.filters(
         kind=kind,
         **filters,
