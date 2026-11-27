@@ -24,6 +24,7 @@ from ..exceptions import (
     URLNotFoundError,
     ValidationError,
     VersionNotSupportedError,
+    authentication_error_from_response,
 )
 from ..graphql import Mutation
 from ..protocols_base import CoreNodeBase
@@ -167,6 +168,7 @@ class InfrahubSchemaBase:
         """Read the schema export endpoint's response.
 
         Raises:
+            AuthenticationError: When the server rejects the credentials (401) or the permissions (403).
             BranchNotFoundError: When the branch does not exist on the server.
             VersionNotSupportedError: When the server is older than the first release with the endpoint.
             SchemaNamespaceNotFoundError: When a requested namespace does not exist on the branch or cannot be
@@ -176,7 +178,7 @@ class InfrahubSchemaBase:
             JsonDecodeError: When the server returns a body that is not JSON.
             InvalidResponseError: When the document holds a value this SDK version cannot read.
 
-        """
+        """  # noqa: DOC501  # raises via a factory, whose name ruff reads as the exception's
         if response.status_code == httpx.codes.OK:
             try:
                 return SchemaExportDocument.model_validate(response.json())
@@ -191,6 +193,9 @@ class InfrahubSchemaBase:
                     f"The schema export from {response.url} holds a value this version of the SDK cannot read; "
                     f"use an SDK version that matches the Infrahub server. {exc}"
                 ) from exc
+
+        if response.status_code in {httpx.codes.UNAUTHORIZED, httpx.codes.FORBIDDEN}:
+            raise authentication_error_from_response(response=response)
 
         if response.status_code == httpx.codes.BAD_REQUEST:
             raise BranchNotFoundError(

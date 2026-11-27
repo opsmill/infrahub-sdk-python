@@ -19,6 +19,7 @@ from ..ctl.client import initialize_client
 from ..ctl.utils import catch_exception, init_logging
 from ..exceptions import (
     ApiError,
+    AuthenticationError,
     InvalidResponseError,
     JsonDecodeError,
     SchemaNamespaceNotFoundError,
@@ -322,7 +323,7 @@ async def export(
     debug: bool = False,
     _: str = CONFIG_PARAM,
 ) -> None:
-    """Export the schema from Infrahub as YAML files, one per namespace."""
+    """Export the schema from Infrahub as YAML files: one per namespace, or one file with --single-file."""
     init_logging(debug=debug)
 
     client = initialize_client()
@@ -339,6 +340,8 @@ async def export(
         InvalidResponseError,
         ApiError,
     ) as exc:
+        if isinstance(exc, AuthenticationError):
+            raise
         console.print(f"[red]Error: {escape(str(exc))}")
         raise typer.Exit(code=1) from exc
 
@@ -351,14 +354,14 @@ async def export(
     if single_file:
         output_file = directory / "schema.yml"
         _write_schema_file(document=document, output_file=output_file)
-        console.print(f"[green] Exported schema to {output_file}")
+        console.print(f"[green] Exported schema to {escape(str(output_file))}")
     else:
         for ns, namespace_document in sorted(split_by_namespace(document).items()):
             output_file = directory / f"{ns.lower()}.yml"
             _write_schema_file(document=namespace_document, output_file=output_file)
-            console.print(f"[green] Exported namespace '{ns}' to {output_file}")
+            console.print(f"[green] Exported namespace '{escape(ns)}' to {escape(str(output_file))}")
 
-    console.print(f"[green] Schema exported to {directory}")
+    console.print(f"[green] Schema exported to {escape(str(directory))}")
 
 
 def _write_schema_file(document: SchemaExportDocument, output_file: Path) -> None:

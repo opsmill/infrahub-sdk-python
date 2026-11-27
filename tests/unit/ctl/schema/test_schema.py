@@ -570,3 +570,28 @@ def test_schema_export_reports_a_404_that_names_no_namespace_as_an_unknown_url(
     assert result.exit_code == 1
     assert remove_ansi_color(result.stdout.replace("\n", "")) == f"Error: `{EXPORT_URL}` not found."
     assert not directory.exists()
+
+
+def test_schema_export_reports_a_401_as_an_authentication_failure(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
+    httpx_mock.add_response(
+        method="GET",
+        url=EXPORT_URL,
+        status_code=401,
+        json={"data": None, "errors": [{"message": "Authentication is required", "extensions": {"code": 401}}]},
+    )
+
+    result = runner.invoke(app, ["schema", "export", "--directory", str(tmp_path / "export")])
+
+    assert result.exit_code == 1
+    assert remove_ansi_color(result.stdout.replace("\n", "")) == "Authentication failure: Authentication is required"
+
+
+def test_schema_export_prints_a_directory_name_with_brackets(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
+    httpx_mock.add_response(method="GET", url=EXPORT_URL, json=EXPORT_RESPONSE)
+    directory = tmp_path / "a[/b]"
+
+    result = runner.invoke(app, ["schema", "export", "--directory", str(directory), "--single-file"])
+
+    assert result.exit_code == 0, result.stdout
+    assert remove_ansi_color(result.stdout).splitlines()[-1] == f" Schema exported to {directory}"
+    assert (directory / "schema.yml").exists()

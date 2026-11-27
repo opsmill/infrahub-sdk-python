@@ -10,6 +10,7 @@ import pytest
 
 from infrahub_sdk.exceptions import (
     ApiError,
+    AuthenticationError,
     BranchNotFoundError,
     InvalidResponseError,
     SchemaNamespaceNotFoundError,
@@ -302,6 +303,22 @@ async def test_export_with_a_value_the_sdk_cannot_read_raises_invalid_response(
         match=r"^The schema export from http://mock/api/schema/export\?branch=main&mode=BRIEF holds a value this "
         r"version of the SDK cannot read; use an SDK version that matches the Infrahub server\. ",
     ):
+        await _export(clients, client_type, branch="main")
+
+
+@pytest.mark.parametrize("client_type", client_types)
+@pytest.mark.parametrize("status_code", [401, 403])
+async def test_export_rejected_for_the_credentials_raises_authentication_error(
+    httpx_mock: HTTPXMock, clients: BothClients, client_type: str, status_code: int
+) -> None:
+    httpx_mock.add_response(
+        method="GET",
+        url="http://mock/api/schema/export?branch=main&mode=BRIEF",
+        status_code=status_code,
+        json={"data": None, "errors": [{"message": "Authentication is required", "extensions": {"code": status_code}}]},
+    )
+
+    with pytest.raises(AuthenticationError, match=r"^Authentication is required$"):
         await _export(clients, client_type, branch="main")
 
 
