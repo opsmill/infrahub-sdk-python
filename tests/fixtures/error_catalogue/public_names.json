@@ -34,6 +34,7 @@
   "RateLimitError",
   "RepositoryFileNotFoundError",
   "ResourceNotDefinedError",
+  "SchemaNamespaceNotFoundError",
   "SchemaNotFoundError",
   "ServerNotReachableError",
   "ServerNotResponsiveError",

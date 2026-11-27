@@ -2,12 +2,22 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
+import yaml
 from typer.testing import CliRunner
 
 from infrahub_sdk.ctl.cli_commands import app
-from infrahub_sdk.schema import NodeSchemaAPI
+from infrahub_sdk.schema import SCHEMA_EXPORT_MIN_INFRAHUB_VERSION, NodeSchemaAPI
+from tests.helpers.cli import remove_ansi_color
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from pytest_httpx import HTTPXMock
 
 runner = CliRunner()
 
@@ -325,3 +335,304 @@ def test_schema_show_attribute_with_default_value() -> None:
 
     assert result.exit_code == 0, result.stdout
     assert "1000" in result.stdout
+
+
+# ---------------------------------------------------------------------------
+# schema export tests
+# ---------------------------------------------------------------------------
+
+EXPORT_URL = "http://mock/api/schema/export?branch=main&mode=BRIEF"
+
+EXPORT_RESPONSE: dict[str, Any] = {
+    "version": "1.0",
+    "infrahub_version": "1.13.0",
+    "generics": [
+        {
+            "name": "Interface",
+            "namespace": "Network",
+            "attributes": [{"name": "name", "kind": "Text"}],
+        },
+    ],
+    "nodes": [
+        {
+            "name": "Device",
+            "namespace": "Network",
+            "inherit_from": [],
+            "attributes": [{"name": "name", "kind": "Text", "unique": True}],
+            "relationships": [{"name": "site", "peer": "LocationSite", "cardinality": "one", "optional": False}],
+        },
+        {"name": "Site", "namespace": "Location", "attributes": [{"name": "name", "kind": "Text"}]},
+    ],
+}
+
+
+def _read_yaml(path: Path) -> dict[str, Any]:
+    return yaml.safe_load(path.read_text(encoding="utf-8"))
+
+
+def test_schema_export_writes_one_file_per_namespace(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
+    httpx_mock.add_response(method="GET", url=EXPORT_URL, json=EXPORT_RESPONSE)
+
+    result = runner.invoke(app, ["schema", "export", "--directory", str(tmp_path)])
+
+    assert result.exit_code == 0, result.stdout
+    assert sorted(path.name for path in tmp_path.iterdir()) == ["location.yml", "network.yml"]
+
+    network = _read_yaml(tmp_path / "network.yml")
+    assert list(network) == ["version", "infrahub_version", "generics", "nodes"]
+    assert network == {
+        "version": "1.0",
+        "infrahub_version": "1.13.0",
+        "generics": EXPORT_RESPONSE["generics"],
+        "nodes": [EXPORT_RESPONSE["nodes"][0]],
+    }
+    assert _read_yaml(tmp_path / "location.yml") == {
+        "version": "1.0",
+        "infrahub_version": "1.13.0",
+        "nodes": [EXPORT_RESPONSE["nodes"][1]],
+    }
+
+
+def test_schema_export_single_file_writes_the_endpoint_document(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
+    httpx_mock.add_response(method="GET", url=EXPORT_URL, json=EXPORT_RESPONSE)
+
+    result = runner.invoke(app, ["schema", "export", "--directory", str(tmp_path), "--single-file"])
+
+    assert result.exit_code == 0, result.stdout
+    assert [path.name for path in tmp_path.iterdir()] == ["schema.yml"]
+    schema = _read_yaml(tmp_path / "schema.yml")
+    assert list(schema) == ["version", "infrahub_version", "generics", "nodes"]
+    assert schema == EXPORT_RESPONSE
+
+
+UNKNOWN_NODE = {
+    "name": "Rack",
+    "namespace": "Location",
+    "unknown_node_setting": "kept",
+    "attributes": [{"name": "name", "kind": "Text", "unknown_attribute_setting": True}],
+    "relationships": [{"name": "site", "peer": "LocationSite", "unknown_relationship_setting": 1}],
+}
+
+EXPORT_RESPONSE_WITH_UNKNOWN_FIELDS: dict[str, Any] = {
+    **EXPORT_RESPONSE,
+    "unknown_document_setting": "kept",
+    "nodes": [*EXPORT_RESPONSE["nodes"], UNKNOWN_NODE],
+}
+
+
+def test_schema_export_single_file_keeps_fields_this_sdk_does_not_know(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
+    httpx_mock.add_response(method="GET", url=EXPORT_URL, json=EXPORT_RESPONSE_WITH_UNKNOWN_FIELDS)
+
+    result = runner.invoke(app, ["schema", "export", "--directory", str(tmp_path), "--single-file"])
+
+    assert result.exit_code == 0, result.stdout
+    assert _read_yaml(tmp_path / "schema.yml") == EXPORT_RESPONSE_WITH_UNKNOWN_FIELDS
+
+
+def test_schema_export_per_namespace_keeps_fields_this_sdk_does_not_know(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
+    httpx_mock.add_response(method="GET", url=EXPORT_URL, json=EXPORT_RESPONSE_WITH_UNKNOWN_FIELDS)
+
+    result = runner.invoke(app, ["schema", "export", "--directory", str(tmp_path)])
+
+    assert result.exit_code == 0, result.stdout
+    location = _read_yaml(tmp_path / "location.yml")
+    assert list(location) == ["version", "infrahub_version", "nodes", "unknown_document_setting"]
+    assert location == {
+        "version": "1.0",
+        "infrahub_version": "1.13.0",
+        "nodes": [EXPORT_RESPONSE["nodes"][1], UNKNOWN_NODE],
+        "unknown_document_setting": "kept",
+    }
+    assert _read_yaml(tmp_path / "network.yml")["unknown_document_setting"] == "kept"
+
+
+def test_schema_export_writes_no_default_for_a_field_the_response_left_out(
+    httpx_mock: HTTPXMock, tmp_path: Path
+) -> None:
+    httpx_mock.add_response(method="GET", url=EXPORT_URL, json=EXPORT_RESPONSE)
+
+    result = runner.invoke(app, ["schema", "export", "--directory", str(tmp_path), "--single-file"])
+
+    assert result.exit_code == 0, result.stdout
+    site = _read_yaml(tmp_path / "schema.yml")["nodes"][1]
+    # These fields have defaults in the schema model, so they would appear if the CLI wrote every field.
+    for field in ("label", "branch", "state", "generate_profile", "relationships", "inherit_from"):
+        assert field not in site
+    assert site["attributes"] == [{"name": "name", "kind": "Text"}]
+
+
+def test_schema_export_sends_mode_and_namespaces(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
+    httpx_mock.add_response(
+        method="GET",
+        url="http://mock/api/schema/export?branch=main&namespaces=Network&namespaces=Location&mode=FULL",
+        json=EXPORT_RESPONSE,
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "schema",
+            "export",
+            "--directory",
+            str(tmp_path),
+            "--mode",
+            "FULL",
+            "--namespaces",
+            "Network",
+            "--namespaces",
+            "Location",
+        ],
+    )
+
+    assert result.exit_code == 0, result.stdout
+    assert len(httpx_mock.get_requests()) == 1
+
+
+def test_schema_export_empty_document(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
+    httpx_mock.add_response(
+        method="GET",
+        url=EXPORT_URL,
+        json={"version": "1.0", "infrahub_version": "1.13.0", "generics": [], "nodes": []},
+    )
+    directory = tmp_path / "export"
+
+    result = runner.invoke(app, ["schema", "export", "--directory", str(directory)])
+
+    assert result.exit_code == 0, result.stdout
+    assert "No user-defined schema found to export." in result.stdout
+    assert not directory.exists()
+
+
+@dataclass
+class ExportErrorCase:
+    name: str
+    status_code: int
+    message: str
+    expected_output: str
+
+
+EXPORT_ERROR_CASES = [
+    ExportErrorCase(
+        name="older-server",
+        status_code=422,
+        message="Unable to find the schema 'export' in the registry",
+        expected_output=f"Infrahub {SCHEMA_EXPORT_MIN_INFRAHUB_VERSION} or later",
+    ),
+    ExportErrorCase(
+        name="422-other-kind",
+        status_code=422,
+        message="Unable to find the schema 'NetworkDevice' in the registry",
+        expected_output="HTTP 422: Unable to find the schema 'NetworkDevice' in the registry",
+    ),
+    ExportErrorCase(
+        name="500",
+        status_code=500,
+        message="Internal server error",
+        expected_output="HTTP 500: Internal server error",
+    ),
+]
+
+
+@pytest.mark.parametrize("case", [pytest.param(case, id=case.name) for case in EXPORT_ERROR_CASES])
+def test_schema_export_error_response(httpx_mock: HTTPXMock, tmp_path: Path, case: ExportErrorCase) -> None:
+    httpx_mock.add_response(
+        method="GET",
+        url=EXPORT_URL,
+        status_code=case.status_code,
+        json={"data": None, "errors": [{"message": case.message, "extensions": {"code": case.status_code}}]},
+    )
+    directory = tmp_path / "export"
+
+    result = runner.invoke(app, ["schema", "export", "--directory", str(directory)])
+
+    assert result.exit_code == 1
+    output = remove_ansi_color(result.stdout.replace("\n", ""))
+    assert case.expected_output in output
+    if case.name != "older-server":
+        assert SCHEMA_EXPORT_MIN_INFRAHUB_VERSION not in output
+    assert not directory.exists()
+
+
+NAMESPACE_EXPORT_URL = "http://mock/api/schema/export?branch=main&namespaces=Locaton&namespaces=Core&mode=BRIEF"
+
+
+def test_schema_export_prints_each_namespace_the_server_cannot_export(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
+    httpx_mock.add_response(
+        method="GET",
+        url=NAMESPACE_EXPORT_URL,
+        status_code=404,
+        json={
+            "data": None,
+            "errors": [
+                {
+                    "message": "The namespace 'Locaton' does not exist on the branch 'main'",
+                    "extensions": {"namespace": "Locaton", "code": 404},
+                },
+                {
+                    "message": "The namespace 'Core' is reserved for Infrahub and cannot be exported",
+                    "extensions": {"namespace": "Core", "code": 404},
+                },
+            ],
+        },
+    )
+    directory = tmp_path / "export"
+
+    result = runner.invoke(
+        app,
+        ["schema", "export", "--directory", str(directory), "--namespaces", "Locaton", "--namespaces", "Core"],
+    )
+
+    assert result.exit_code == 1
+    assert remove_ansi_color(result.stdout).splitlines() == [
+        "Error: The namespace 'Locaton' does not exist on the branch 'main'",
+        "Error: The namespace 'Core' is reserved for Infrahub and cannot be exported",
+    ]
+    assert not directory.exists()
+
+
+def test_schema_export_reports_a_404_that_names_no_namespace_as_an_unknown_url(
+    httpx_mock: HTTPXMock, tmp_path: Path
+) -> None:
+    httpx_mock.add_response(
+        method="GET",
+        url=EXPORT_URL,
+        status_code=404,
+        json={
+            "data": None,
+            "errors": [
+                {"message": "The requested endpoint /api/schema/export does not exist", "extensions": {"code": 404}}
+            ],
+        },
+    )
+    directory = tmp_path / "export"
+
+    result = runner.invoke(app, ["schema", "export", "--directory", str(directory)])
+
+    assert result.exit_code == 1
+    assert remove_ansi_color(result.stdout.replace("\n", "")) == f"Error: `{EXPORT_URL}` not found."
+    assert not directory.exists()
+
+
+def test_schema_export_reports_a_401_as_an_authentication_failure(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
+    httpx_mock.add_response(
+        method="GET",
+        url=EXPORT_URL,
+        status_code=401,
+        json={"data": None, "errors": [{"message": "Authentication is required", "extensions": {"code": 401}}]},
+    )
+
+    result = runner.invoke(app, ["schema", "export", "--directory", str(tmp_path / "export")])
+
+    assert result.exit_code == 1
+    assert remove_ansi_color(result.stdout.replace("\n", "")) == "Authentication failure: Authentication is required"
+
+
+def test_schema_export_prints_a_directory_name_with_brackets(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
+    httpx_mock.add_response(method="GET", url=EXPORT_URL, json=EXPORT_RESPONSE)
+    directory = tmp_path / "a[/b]"
+
+    result = runner.invoke(app, ["schema", "export", "--directory", str(directory), "--single-file"])
+
+    assert result.exit_code == 0, result.stdout
+    assert remove_ansi_color(result.stdout).splitlines()[-1] == f" Schema exported to {directory}"
+    assert (directory / "schema.yml").exists()

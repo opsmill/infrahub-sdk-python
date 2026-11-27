@@ -1,0 +1,1 @@
+Added the `--mode` option to `infrahubctl schema export`: `BRIEF`, the default, leaves out the values Infrahub derives when it loads the schema, and `FULL` writes every value. Added the `--single-file` option, which writes all namespaces to one file, `schema.yml`.

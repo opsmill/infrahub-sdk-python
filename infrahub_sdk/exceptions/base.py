@@ -37,6 +37,7 @@ __all__ = [
     "RateLimitError",
     "RepositoryFileNotFoundError",
     "ResourceNotDefinedError",
+    "SchemaNamespaceNotFoundError",
     "SchemaNotFoundError",
     "ServerNotReachableError",
     "ServerNotResponsiveError",
@@ -206,6 +207,18 @@ class TrackingGroupCleanupError(Error):
         return (self.__class__, (self.failures,))
 
 
+class SchemaNamespaceNotFoundError(ApiError):
+    """Raised when a schema export names a namespace that does not exist on the branch or cannot be exported."""
+
+    def __init__(self, namespaces: list[str], messages: list[str]) -> None:
+        self.namespaces = namespaces
+        self.messages = messages
+        super().__init__("; ".join(messages))
+
+    def __reduce__(self) -> tuple[Any, ...]:
+        return (_rebuild_error, (type(self), self.args, self.__dict__))
+
+
 class VersionNotSupportedError(Error):
     """Raised when a feature is used against an Infrahub server version that does not support it."""
 
@@ -214,6 +227,9 @@ class VersionNotSupportedError(Error):
         self.required_version = required_version
         self.message = f"{feature} requires Infrahub {required_version} or later."
         super().__init__(self.message)
+
+    def __reduce__(self) -> tuple[Any, ...]:
+        return (_rebuild_error, (type(self), self.args, self.__dict__))
 
 
 class BranchNotFoundPayload(Protocol):

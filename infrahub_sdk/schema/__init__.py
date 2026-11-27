@@ -12,18 +12,24 @@ from urllib.parse import urlencode
 
 import httpx
 from pydantic import BaseModel, Field
+from pydantic import ValidationError as PydanticValidationError
 
 from ..exceptions import (
+    ApiError,
     BranchNotFoundError,
     InvalidResponseError,
     JsonDecodeError,
+    SchemaNamespaceNotFoundError,
     SchemaNotFoundError,
+    URLNotFoundError,
     ValidationError,
+    VersionNotSupportedError,
+    authentication_error_from_response,
 )
 from ..graphql import Mutation
 from ..protocols_base import CoreNodeBase
 from ..queries import SCHEMA_HASH_SYNC_STATUS
-from .export import RESTRICTED_NAMESPACES, NamespaceExport, SchemaExport, schema_to_export_dict
+from .export import SchemaExportDocument, SchemaExportMode, split_by_namespace
 from .generated.read import InfrahubSchemaRead
 from .generated.write import InfrahubSchemaWrite
 from .main import (
@@ -66,7 +72,6 @@ __all__ = [
     "GenericSchemaAPI",
     "InfrahubSchemaRead",
     "InfrahubSchemaWrite",
-    "NamespaceExport",
     "NodeSchema",
     "NodeSchemaAPI",
     "ProfileSchemaAPI",
@@ -74,16 +79,30 @@ __all__ = [
     "RelationshipKind",
     "RelationshipSchema",
     "RelationshipSchemaAPI",
-    "SchemaExport",
+    "SchemaExportDocument",
+    "SchemaExportMode",
     "SchemaRoot",
     "SchemaRootAPI",
     "SchemaValidationErrorDetail",
     "SchemaValidationResult",
     "SchemaValidationWarningDetail",
     "TemplateSchemaAPI",
-    "schema_to_export_dict",
+    "split_by_namespace",
     "validate_schema",
 ]
+
+SCHEMA_EXPORT_MIN_INFRAHUB_VERSION = "1.13.0"
+"""First Infrahub release that serves the schema export endpoint."""
+
+# An older server routes the export URL as a request for a schema kind named "export".
+_SCHEMA_EXPORT_MISSING_MESSAGE = "Unable to find the schema 'export' in the registry"
+
+
+def _error_namespace(error: dict[str, Any]) -> str | None:
+    """Return the namespace a schema export error names in its extensions, if any."""
+    extensions = error.get("extensions")
+    namespace = extensions.get("namespace") if isinstance(extensions, dict) else None
+    return namespace if isinstance(namespace, str) else None
 
 
 class DropdownMutationOptionalArgs(TypedDict):
@@ -137,47 +156,97 @@ class InfrahubSchemaBase:
         self.client = client
         self.cache = {}
 
-    @staticmethod
-    def _build_export_schemas(
-        schema_nodes: MutableMapping[str, MainSchemaTypesAPI],
-        namespaces: list[str] | None = None,
-    ) -> SchemaExport:
-        """Organize fetched schemas into a per-namespace export structure.
-
-        Filters out system types (Profile/Template) and restricted namespaces
-        (see :data:`RESTRICTED_NAMESPACES`), and optionally limits to specific
-        namespaces.  If the caller requests restricted namespaces they are
-        silently excluded and a :func:`warnings.warn` is emitted.
-
-        Returns:
-            A :class:`SchemaExport` containing user-defined schemas by namespace.
-
-        """
+    def _export_url(self, branch: str, namespaces: list[str] | None, mode: SchemaExportMode) -> str:
+        url_parts = [("branch", branch)]
         if namespaces:
-            restricted = set(namespaces) & set(RESTRICTED_NAMESPACES)
-            if restricted:
-                warnings.warn(
-                    f"Restricted namespace(s) {sorted(restricted)} requested but will be excluded from export",
-                    stacklevel=3,
-                )
+            url_parts.extend([("namespaces", ns) for ns in namespaces])
+        url_parts.append(("mode", SchemaExportMode(mode).value))
+        return f"{self.client.address}/api/schema/export?{urlencode(url_parts)}"
 
-        ns_map: dict[str, NamespaceExport] = {}
-        for schema in schema_nodes.values():
-            if isinstance(schema, (ProfileSchemaAPI, TemplateSchemaAPI)):
-                continue
-            if schema.namespace in RESTRICTED_NAMESPACES:
-                continue
-            if namespaces and schema.namespace not in namespaces:
-                continue
-            ns = schema.namespace
-            if ns not in ns_map:
-                ns_map[ns] = NamespaceExport()
-            schema_dict = schema_to_export_dict(schema)
-            if isinstance(schema, GenericSchemaAPI):
-                ns_map[ns].generics.append(schema_dict)
-            else:
-                ns_map[ns].nodes.append(schema_dict)
-        return SchemaExport(namespaces=ns_map)
+    @classmethod
+    def _export_payload_from_response(cls, response: httpx.Response, branch: str) -> dict[str, Any]:
+        """Check the schema export endpoint's response, then return its JSON body with every field it holds.
+
+        The write models of this SDK version drop the fields they do not declare, so the checked document cannot be
+        returned instead.
+        """
+        cls._parse_export_response(response=response, branch=branch)
+        payload: dict[str, Any] = response.json()
+        return payload
+
+    @staticmethod
+    def _parse_export_response(response: httpx.Response, branch: str) -> SchemaExportDocument:
+        """Read the schema export endpoint's response.
+
+        Raises:
+            AuthenticationError: When the server rejects the credentials (401) or the permissions (403).
+            BranchNotFoundError: When the branch does not exist on the server.
+            VersionNotSupportedError: When the server is older than the first release with the endpoint.
+            SchemaNamespaceNotFoundError: When a requested namespace does not exist on the branch or cannot be
+                exported, with one message per namespace.
+            URLNotFoundError: When the server returns a 404 that does not name a namespace.
+            ApiError: When the server returns any other error, with the messages the server returned.
+            JsonDecodeError: When the server returns a body that is not JSON.
+            InvalidResponseError: When the document holds a value this SDK version cannot read.
+
+        """  # noqa: DOC501  # raises via a factory, whose name ruff reads as the exception's
+        if response.status_code == httpx.codes.OK:
+            try:
+                return SchemaExportDocument.model_validate(response.json())
+            except json.decoder.JSONDecodeError as exc:
+                raise JsonDecodeError(
+                    message=f"Invalid schema export response received from the server at {response.url}: {response.text} [{response.status_code}]",
+                    content=response.text,
+                    url=str(response.url),
+                ) from exc
+            except PydanticValidationError as exc:
+                raise InvalidResponseError(
+                    f"The schema export from {response.url} holds a value this version of the SDK cannot read; "
+                    f"use an SDK version that matches the Infrahub server. {exc}"
+                ) from exc
+
+        if response.status_code in {httpx.codes.UNAUTHORIZED, httpx.codes.FORBIDDEN}:
+            raise authentication_error_from_response(response=response)
+
+        if response.status_code == httpx.codes.BAD_REQUEST:
+            raise BranchNotFoundError(
+                identifier=branch, message=f"The requested branch was not found on the server [{branch}]"
+            )
+
+        try:
+            body = response.json()
+        except json.decoder.JSONDecodeError:
+            body = None
+        errors = body.get("errors") if isinstance(body, dict) else None
+        error_list = [error for error in errors if isinstance(error, dict)] if isinstance(errors, list) else []
+        messages = [error["message"] for error in error_list if isinstance(error.get("message"), str)]
+
+        if response.status_code == httpx.codes.UNPROCESSABLE_ENTITY and _SCHEMA_EXPORT_MISSING_MESSAGE in messages:
+            raise VersionNotSupportedError(
+                feature="The schema export", required_version=SCHEMA_EXPORT_MIN_INFRAHUB_VERSION
+            )
+
+        if response.status_code == httpx.codes.NOT_FOUND:
+            named_errors = [(error, _error_namespace(error)) for error in error_list]
+            if not named_errors or any(namespace is None for _, namespace in named_errors):
+                raise URLNotFoundError(url=str(response.url))
+            namespaces = [namespace for _, namespace in named_errors if namespace is not None]
+            namespace_messages = [
+                message
+                if isinstance(message := error.get("message"), str)
+                else f"The namespace '{namespace}' cannot be exported"
+                for error, namespace in named_errors
+            ]
+            namespace_error = SchemaNamespaceNotFoundError(namespaces=namespaces, messages=namespace_messages)
+            namespace_error.http_status = response.status_code
+            namespace_error.errors = error_list
+            raise namespace_error
+
+        details = " | ".join(messages) if messages else response.text
+        api_error = ApiError(message=f"HTTP {response.status_code}: {details}")
+        api_error.http_status = response.status_code
+        api_error.errors = error_list
+        raise api_error
 
     def validate(self, data: dict[str, Any]) -> SchemaValidationResult:
         """Validate a schema payload against the generated write contract.
@@ -579,28 +648,42 @@ class InfrahubSchema(InfrahubSchemaBase):
         self,
         branch: str | None = None,
         namespaces: list[str] | None = None,
-    ) -> SchemaExport:
-        """Export user-defined schemas organized by namespace.
-
-        Fetches schemas from the server, filters out system types and
-        restricted namespaces (see :data:`RESTRICTED_NAMESPACES`), and returns
-        a :class:`SchemaExport` object with per-namespace data.  Restricted
-        namespaces such as ``Core`` and ``Builtin`` are always excluded even if
-        explicitly listed in *namespaces*; a warning is emitted when this
-        happens.
+        mode: SchemaExportMode = SchemaExportMode.BRIEF,
+    ) -> SchemaExportDocument:
+        """Export the user-defined schema of a branch as one schema file, built by the server.
 
         Args:
             branch: Branch to export from. Defaults to default_branch.
-            namespaces: Optional list of namespaces to include. If empty/None,
-                all user-defined namespaces are exported.
+            namespaces: Namespaces to export. If empty or None, the server exports all user-defined namespaces.
+            mode: BRIEF leaves out the values Infrahub derives when the file is loaded; FULL writes every value.
 
         Returns:
-            A :class:`SchemaExport` containing user-defined schemas by namespace.
+            The server's document, holding only the fields the server returned.
+
+        Raises:
+            BranchNotFoundError: When the branch does not exist on the server.
+            VersionNotSupportedError: When the server is older than the first release with the export endpoint.
+            SchemaNamespaceNotFoundError: When a namespace does not exist on the branch or cannot be exported.
+            URLNotFoundError: When the server returns a 404 that does not name a namespace.
+            ApiError: When the server returns any other error, with the messages the server returned.
+            JsonDecodeError: When the server returns a body that is not JSON.
+            InvalidResponseError: When the document holds a value this SDK version cannot read.
 
         """
         branch = branch or self.client.default_branch
-        schema_nodes = await self.fetch(branch=branch, namespaces=namespaces, populate_cache=False)
-        return self._build_export_schemas(schema_nodes=schema_nodes, namespaces=namespaces)
+        response = await self.client._get(url=self._export_url(branch=branch, namespaces=namespaces, mode=mode))
+        return self._parse_export_response(response=response, branch=branch)
+
+    async def _export_payload(
+        self,
+        branch: str | None = None,
+        namespaces: list[str] | None = None,
+        mode: SchemaExportMode = SchemaExportMode.BRIEF,
+    ) -> dict[str, Any]:
+        """Export the user-defined schema of a branch and return the server's document with every field it holds."""
+        branch = branch or self.client.default_branch
+        response = await self.client._get(url=self._export_url(branch=branch, namespaces=namespaces, mode=mode))
+        return self._export_payload_from_response(response=response, branch=branch)
 
     async def get_graphql_schema(self, branch: str | None = None) -> str:
         """Get the GraphQL schema as a string.
@@ -857,28 +940,42 @@ class InfrahubSchemaSync(InfrahubSchemaBase):
         self,
         branch: str | None = None,
         namespaces: list[str] | None = None,
-    ) -> SchemaExport:
-        """Export user-defined schemas organized by namespace.
-
-        Fetches schemas from the server, filters out system types and
-        restricted namespaces (see :data:`RESTRICTED_NAMESPACES`), and returns
-        a :class:`SchemaExport` object with per-namespace data.  Restricted
-        namespaces such as ``Core`` and ``Builtin`` are always excluded even if
-        explicitly listed in *namespaces*; a warning is emitted when this
-        happens.
+        mode: SchemaExportMode = SchemaExportMode.BRIEF,
+    ) -> SchemaExportDocument:
+        """Export the user-defined schema of a branch as one schema file, built by the server.
 
         Args:
             branch: Branch to export from. Defaults to default_branch.
-            namespaces: Optional list of namespaces to include. If empty/None,
-                all user-defined namespaces are exported.
+            namespaces: Namespaces to export. If empty or None, the server exports all user-defined namespaces.
+            mode: BRIEF leaves out the values Infrahub derives when the file is loaded; FULL writes every value.
 
         Returns:
-            A :class:`SchemaExport` containing user-defined schemas by namespace.
+            The server's document, holding only the fields the server returned.
+
+        Raises:
+            BranchNotFoundError: When the branch does not exist on the server.
+            VersionNotSupportedError: When the server is older than the first release with the export endpoint.
+            SchemaNamespaceNotFoundError: When a namespace does not exist on the branch or cannot be exported.
+            URLNotFoundError: When the server returns a 404 that does not name a namespace.
+            ApiError: When the server returns any other error, with the messages the server returned.
+            JsonDecodeError: When the server returns a body that is not JSON.
+            InvalidResponseError: When the document holds a value this SDK version cannot read.
 
         """
         branch = branch or self.client.default_branch
-        schema_nodes = self.fetch(branch=branch, namespaces=namespaces, populate_cache=False)
-        return self._build_export_schemas(schema_nodes=schema_nodes, namespaces=namespaces)
+        response = self.client._get(url=self._export_url(branch=branch, namespaces=namespaces, mode=mode))
+        return self._parse_export_response(response=response, branch=branch)
+
+    def _export_payload(
+        self,
+        branch: str | None = None,
+        namespaces: list[str] | None = None,
+        mode: SchemaExportMode = SchemaExportMode.BRIEF,
+    ) -> dict[str, Any]:
+        """Export the user-defined schema of a branch and return the server's document with every field it holds."""
+        branch = branch or self.client.default_branch
+        response = self.client._get(url=self._export_url(branch=branch, namespaces=namespaces, mode=mode))
+        return self._export_payload_from_response(response=response, branch=branch)
 
     def get_graphql_schema(self, branch: str | None = None) -> str:
         """Get the GraphQL schema as a string.

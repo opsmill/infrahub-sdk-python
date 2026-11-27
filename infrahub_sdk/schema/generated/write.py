@@ -607,6 +607,7 @@ class SchemaExtensionWrite(BaseModel):
 class InfrahubSchemaWrite(BaseModel):
     model_config = ConfigDict(extra="ignore", use_enum_values=True)
     version: str
+    infrahub_version: str | None = None
     nodes: list[NodeSchemaWrite] = Field(default_factory=list)
     generics: list[GenericSchemaWrite] = Field(default_factory=list)
     extensions: SchemaExtensionWrite | None = None

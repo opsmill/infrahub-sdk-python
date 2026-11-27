@@ -1,0 +1,1 @@
+Removed `schema_to_export_dict`, `RESTRICTED_NAMESPACES`, `NamespaceExport` and `SchemaExport` from `infrahub_sdk.schema`, because Infrahub now builds the schema export. Use `SchemaExportDocument` and `split_by_namespace` instead.
