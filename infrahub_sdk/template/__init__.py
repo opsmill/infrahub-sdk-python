@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import linecache
 from collections.abc import Callable
+from functools import lru_cache
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, NoReturn
 
 import jinja2
 from jinja2 import meta, nodes
+from jinja2.defaults import DEFAULT_NAMESPACE, DEFAULT_TESTS
 from jinja2.sandbox import SandboxedEnvironment
 from netutils.utils import jinja2_convenience_function
 from rich.syntax import Syntax
@@ -27,6 +29,44 @@ if TYPE_CHECKING:
     from infrahub_sdk.client import InfrahubClient
 
 netutils_filters = jinja2_convenience_function()
+
+
+def _build_string_environment() -> SandboxedEnvironment:
+    return SandboxedEnvironment(enable_async=True, undefined=jinja2.StrictUndefined)
+
+
+# Jinja2 does not call a context filter while it compiles a template, so a filter on a constant is not evaluated.
+@jinja2.pass_context
+def _parse_only_filter(*_args: Any, **_kwargs: Any) -> NoReturn:
+    raise NotImplementedError("Stands in for a filter while a template is parsed, and is never rendered")
+
+
+@lru_cache(maxsize=1024)
+def _parse_template_variables(template: str) -> tuple[str, ...]:
+    env = _build_string_environment()
+    ast = env.parse(template)
+    # Collecting variables compiles the template, which fails on an unknown filter; filters are checked by validation instead.
+    for filter_node in ast.find_all(nodes.Filter):
+        env.filters.setdefault(filter_node.name, _parse_only_filter)
+    return tuple(sorted(meta.find_undeclared_variables(ast)))
+
+
+def get_template_variables(template: str) -> list[str]:
+    """Return the sorted names of the variables a string Jinja2 template reads.
+
+    The result is cached per template text, so reading the variables of the same template again does not parse it again.
+
+    Raises:
+        JinjaTemplateSyntaxError: When the template is not valid Jinja2.
+        TypeError: When the template is not a string.
+
+    """
+    if not isinstance(template, str):
+        raise TypeError(f"A string template is required, got {type(template).__name__}")
+    try:
+        return list(_parse_template_variables(template))
+    except jinja2.TemplateSyntaxError as exc:
+        raise JinjaTemplateSyntaxError(message=exc.message, lineno=exc.lineno) from exc
 
 
 class Jinja2Template:
@@ -96,6 +136,9 @@ class Jinja2Template:
         return template
 
     def get_variables(self) -> list[str]:
+        if self.is_string_based and self._has_default_string_environment():
+            return get_template_variables(self._template)
+
         env = self.get_environment()
 
         template_source = self._template
@@ -108,6 +151,19 @@ class Jinja2Template:
             self._raise_template_syntax_error(error=exc)
 
         return sorted(meta.find_undeclared_variables(template))
+
+    def _has_default_string_environment(self) -> bool:
+        if type(self)._get_string_based_environment is not Jinja2Template._get_string_based_environment:
+            return False
+        env = self._environment
+        if env is None:
+            return True
+        # Globals, tests and extensions change the variables a template reads or whether it compiles.
+        return (
+            env.globals.keys() == DEFAULT_NAMESPACE.keys()
+            and env.tests.keys() == DEFAULT_TESTS.keys()
+            and not env.extensions
+        )
 
     def validate(self, restricted: bool = True, context: ExecutionContext | None = None) -> None:
         effective_context = (
@@ -166,7 +222,7 @@ class Jinja2Template:
         return output
 
     def _get_string_based_environment(self) -> jinja2.Environment:
-        env = SandboxedEnvironment(enable_async=True, undefined=jinja2.StrictUndefined)
+        env = _build_string_environment()
         self._set_filters(env=env)
         self._environment = env
         return self._environment
